@@ -1,0 +1,4 @@
+- [Issue #9 dev infra: what was built](issue-9-dev-infra.md) — docker-compose.dev.yml, Postgres/RabbitMQ bootstrap, file locations
+- [Core identity depends on issue #10 schema](core-identity-seeder-needs-schema.md) — why core.WebApi still crash-loops after #9, and why that's expected
+- [Local machine uses Colima, not Docker Desktop](local-docker-backend-colima.md) — how to start the docker daemon on this dev machine
+- [Aspire dcp quirks when probing/killing services](aspire-dcp-quirks.md) — hung curl probes and orphaned processes when stopping the AppHost

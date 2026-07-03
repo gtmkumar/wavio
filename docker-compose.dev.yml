@@ -1,0 +1,55 @@
+# Wavio — local dev infrastructure (issue #9).
+#
+# Brings up PostgreSQL 16 + RabbitMQ for local development. The .NET Aspire AppHost
+# (src/backend/wavio/wavio.AppHost) does NOT manage these containers — it only injects
+# connection strings that point at localhost, matching the ports below. See
+# docs/BUILD_PLAN.md "Runtime: Docker Compose on the VPS" for the production counterpart
+# (docker-compose.prod.yml, issue #12), which this file intentionally mirrors.
+#
+# Usage: see deploy/README.md
+
+name: wavio
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: wavio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: waplatform
+    ports:
+      - "5432:5432"
+    volumes:
+      - wavio-postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d waplatform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: wavio-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - wavio-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  wavio-postgres-data:
+  wavio-rabbitmq-data:
