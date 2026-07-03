@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- ICurrentUser impl needs UserType/ScopeType constants from the shared model -->
+        <ProjectReference Include="..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MailKit" Version="4.17.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
+        <!-- ValidationFilter<T> runs FluentValidation validators as a minimal-API endpoint filter -->
+        <PackageReference Include="FluentValidation" Version="11.11.0" />
+        <PackageReference Include="Microsoft.OpenApi" Version="2.9.0" />
+        <!-- CQRS handler/behavior assembly scanning (services.Scan) -->
+        <PackageReference Include="Scrutor" Version="5.0.2" />
+        <!-- OpenAPI document + Bearer/error-response transformers (AddDefaultOpenApi) -->
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+        <!-- Scalar API reference UI (MapDefaultOpenApi serves it at /scalar) -->
+        <PackageReference Include="Scalar.AspNetCore" Version="2.16.3" />
+    </ItemGroup>
+
+</Project>

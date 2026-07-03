@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>wavio.Gateway</RootNamespace>
+    <AssemblyName>wavio.Gateway</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- YARP reverse proxy — latest stable, supports .NET 10 -->
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
+    <!-- Built-in rate limiting is in-box from .NET 7+; no extra package needed -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Aspire ServiceDefaults: AddServiceDefaults / MapDefaultEndpoints / UseSecurityHeaders -->
+    <ProjectReference Include="..\wavio.ServiceDefaults\wavio.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

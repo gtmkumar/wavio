@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsAotCompatible>true</IsAotCompatible>
+        <!-- Consumed by the 5 wa-* services AND by verticals (DocSlot, Laundry Ghar, …).
+             Keep this library dependency-free: schemas + DTOs + template DSL only.
+             Contract rules (spec §7.2): additive-only within a major version; breaking
+             changes require a new .v2 event alongside the .v1. -->
+    </PropertyGroup>
+
+</Project>
