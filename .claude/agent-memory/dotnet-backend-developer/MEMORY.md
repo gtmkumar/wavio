@@ -8,3 +8,4 @@
 - [Handoff after #10/#11](handoff.md) — what issue #12 (VPS deploy) picked up, and what's left after it
 - [Issue #11 CI pipeline: what was built](issue-11-ci-pipeline.md) — workflow jobs, FK-audit gate design, every gate's local verification incl. negative cases
 - [Issue #12 VPS deploy: what was built](issue-12-vps-deploy.md) — Dockerfile, prod compose, Caddy, SOPS/age, backups, real bugs found, and the shared-working-directory near-incident
+- [Shared checkout — use git worktrees](shared-checkout-use-worktrees.md) — confirmed twice in one day; use `git worktree add` for any nontrivial work, don't wait for a second incident

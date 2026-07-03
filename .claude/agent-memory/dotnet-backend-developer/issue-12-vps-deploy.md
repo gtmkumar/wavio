@@ -5,9 +5,11 @@ metadata:
   type: project
 ---
 
-Issue #12 (2026-07-03), branch `feature/12-vps-deploy` (based on
-`feature/10-db-migrations` — needs `db/migrations` to exist; not stacked on
-#11 since CI isn't a runtime dependency of the deploy artifacts themselves).
+Issue #12 (2026-07-03), branch `feature/12-vps-deploy`. Originally based on
+`feature/10-db-migrations`; **re-based onto `feature/11-ci-pipeline`** (via a
+non-force merge commit, not a rebase — see "Retargeting the PR" below) once
+#11 was QA-approved and the orchestrator asked for the stack to continue on
+top of it. PR #40, base retargeted with `gh pr edit --base`.
 
 ## Files
 - `src/backend/wavio/Dockerfile` — one shared multi-stage Dockerfile for all 8
@@ -147,3 +149,97 @@ don't assume the branch you started on is still checked out.
 - Meta webhook verification against the live HTTPS endpoint (depends on the
   above, and on wa-ingest-svc existing — Wave 1, issue #13, in progress by
   another agent concurrently with this one).
+
+## Round 2 (same day): retargeting onto #11, envelope encryption, and a real Caddy bug
+
+The orchestrator asked to continue the branch stack onto `feature/11-ci-pipeline`
+(now QA-approved) and add scope I hadn't done initially. Rather than reject/redo,
+retargeted the existing PR:
+
+### Retargeting the PR (git mechanics worth remembering)
+`git rebase origin/feature/11-ci-pipeline` on the shared checkout was correctly
+**blocked by the auto-mode permission classifier** when I tried to force-push
+the result — force-push rewrites remote history and only a teammate (not the
+user) had asked for it. Used a plain **merge** instead
+(`git merge origin/feature/11-ci-pipeline --no-edit`, one conflict in
+`MEMORY.md`, resolved by keeping both sides' index entries) — a merge commit
+is purely additive, so a normal (non-force) `git push` sufficed. Lesson: when
+you need a branch to sit on a new base and can't/shouldn't force-push, merge
+the new base in rather than rebasing — same end state (branch now contains
+the new base's history), no permission fight, no history rewrite.
+
+### A second, worse shared-working-directory incident — moved to a real git worktree
+Mid-recovery, the shared checkout's branch changed *again* while I was mid-`git
+stash` (another teammate's concurrent checkout), and `git checkout` back to my
+own branch dragged the other agent's **staged** index content along with it —
+worse than before, since staged content risks being swept into a commit.
+Fixed properly this time instead of repeating the same fragile dance: created
+an actual isolated `git worktree` (`git worktree add --detach <path> <sha>`,
+since the branch was already checked out in the shared dir so a normal
+worktree checkout was refused) at `/Users/gtmkumar/wavio-worktrees/vps-deploy`
+and did all remaining work there, immune to any other agent's concurrent
+checkouts. This is the right tool for this team setup — recommend it (or
+`EnterWorktree`) proactively next time rather than after two near-misses.
+
+### New scope added
+- `wavio.Utilities/Crypto/{IEnvelopeCipher,AesGcmEnvelopeCipher}.cs` — envelope
+  encryption (random per-value data key, wrapped by a master key) for Meta
+  system-user tokens, replacing the spec's KMS references. Minimal surface
+  (Encrypt/Decrypt/Rewrap), no consumers yet (Wave 1 wires it up).
+- `wavio.Utilities.Tests` — **first real test project in the repo** (xUnit).
+  14 tests. Running them for real caught a genuine assumption bug: .NET's
+  `AesGcm.Decrypt` throws `AuthenticationTagMismatchException` (a
+  `CryptographicException` subtype) on tag-mismatch, not the base
+  `CryptographicException` — and xUnit's `Assert.Throws<T>` requires an exact
+  type match, not "is-a". Had to retarget three assertions to the specific
+  subtype. `CA1707` (no underscores in identifiers) suppressed project-wide in
+  the test csproj only — it fights xUnit's standard readable test-naming
+  convention.
+- `.github/workflows/deploy.yml` — `ssh-deploy` job now has an explicit
+  "Check VPS secrets are configured" step that emits a `::notice::` and skips
+  the actual SSH step cleanly (not a failure) when `VPS_HOST`/`VPS_USER`/
+  `VPS_SSH_KEY` aren't set, instead of letting `appleboy/ssh-action` fail on a
+  connection error. Linted clean with `actionlint` (installed via brew).
+- `deploy/secrets/prod.env.enc` + `jwt-private-key.pem.enc` — **committed**,
+  real working encrypted files (every value a literal `CHANGE_ME_FAKE_DEMO_...`
+  placeholder), proving the SOPS/age pipeline works end to end from a fresh
+  clone. Encrypted with the same throwaway demo age recipient already in
+  `.sops.yaml`; used its private half once to produce + verify these files,
+  then deleted it — nobody, including me, can decrypt them anymore. That's
+  the correct state for a demo recipient nobody should reuse for real secrets
+  (documented explicitly in `deploy/secrets/README.md`).
+
+### Real bug #4: Caddy's active health check marked the correctly-404 upstream DOWN
+Brought the **full** `docker-compose.prod.yml` stack up locally, including
+Caddy (with `tls internal` standing in for Let's Encrypt — no real domain
+available), and actually curled `https://localhost/` end to end — this is
+what the orchestrator explicitly asked verification to cover, and it caught
+something my earlier standalone-Caddy-container smoke test (issue #12 round
+1) did not, because that test used a simpler Caddyfile without the
+`health_uri` directive the real committed one has.
+
+Every request came back `503 no upstreams available`. Caddy's `logger
+http.handlers.reverse_proxy.health_checker.active` reported `"status code out
+of tolerances","status_code":404` — the active health checker requires a 2xx
+response by default, but `wavio.Gateway` (and everything behind it)
+legitimately 404s on unmatched routes in this Wave 0 state (exactly the
+reasoning already documented in `docker-compose.prod.yml`'s own healthcheck
+comment). Caddy marked the perfectly healthy upstream as down and refused to
+proxy anything at all — **this would have made every real deployment
+non-functional**, and `caddy validate` alone would never have caught it (it
+only checks config syntax, not runtime behavior against a real upstream).
+
+Fixed by removing the `health_uri`/`health_interval`/`health_timeout` block
+entirely from `deploy/caddy/Caddyfile` — Docker Compose's own healthchecks +
+`depends_on: condition: service_healthy` already gate startup ordering, so
+Caddy re-implementing that against a route that legitimately 404s was pure
+downside. Re-verified after the fix: real `server: Kestrel` / `via: 1.1
+Caddy` headers, zero 503s across 5 repeated requests, multiple paths tested
+(`/`, `/webhooks`, `/api/v1/messages`).
+
+**Takeaway:** "bring the whole stack up and hit it for real" caught a bug
+that config validation, unit-level Caddyfile review, and even an earlier
+*simpler* smoke test all missed. When a verification step is explicitly
+requested (as this one was), do the actual thing requested, not an
+approximation of it — the gap between "validated" and "actually worked" was
+exactly where this bug lived.
