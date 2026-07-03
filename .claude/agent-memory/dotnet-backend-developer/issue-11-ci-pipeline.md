@@ -83,6 +83,10 @@ include every stacked branch, which doesn't scale) for this workflow to fire on
 8. Full end-to-end dry run of all three `db-migrations` job steps in the exact
    order and with the exact env vars the workflow uses, against the bare
    container from point 4 above (not the compose stack) — all green.
+9. Pushed and opened PR #38 (base `feature/10-db-migrations`) — real GitHub
+   Actions run triggered immediately (confirming the no-branch-filter
+   `pull_request:` trigger actually fires on a non-`main`-base PR) and all four
+   jobs passed: https://github.com/gtmkumar/wavio/actions/runs/28661105224
 
 ## Local tooling note
 This machine's default `/bin/bash` is 3.2 (no `mapfile`, no `declare -A`) — had to
