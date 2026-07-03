@@ -15,6 +15,10 @@
 
 set -euo pipefail
 
+# Dumps contain full table contents (PII, tokens, everything) — never world- or
+# group-readable. Must be set before BACKUP_DIR/DUMP_FILE are created below.
+umask 077
+
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-wavio-postgres}"
 POSTGRES_DB="${POSTGRES_DB:-waplatform}"
 POSTGRES_USER="${POSTGRES_USER:-postgres}"

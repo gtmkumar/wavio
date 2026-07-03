@@ -23,6 +23,14 @@ POSTGRES_USER="${POSTGRES_USER:-postgres}"
 BACKUP_DIR="${BACKUP_DIR:-/opt/wavio/backups}"
 SCRATCH_DB="${SCRATCH_DB:-waplatform_restore_drill}"
 
+# This script unconditionally DROPs SCRATCH_DB (both up front and in the
+# cleanup trap on exit) — if misconfigured to equal POSTGRES_DB, it destroys
+# the real database. Refuse to proceed rather than let that happen.
+if [ "$SCRATCH_DB" = "$POSTGRES_DB" ]; then
+    echo "[restore_drill] REFUSING to run: SCRATCH_DB ('$SCRATCH_DB') must not equal POSTGRES_DB ('$POSTGRES_DB') — this script drops SCRATCH_DB unconditionally, on every run and on exit. Set SCRATCH_DB to a different name." >&2
+    exit 1
+fi
+
 DUMP_FILE="${1:-}"
 if [ -z "$DUMP_FILE" ]; then
     DUMP_FILE="$(find "$BACKUP_DIR" -maxdepth 1 -name 'waplatform_*.dump.gz' -print0 \

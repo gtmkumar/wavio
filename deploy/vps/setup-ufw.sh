@@ -40,12 +40,32 @@ ufw allow 80/tcp comment 'HTTP (Caddy ACME + redirect)'
 ufw allow 443/tcp comment 'HTTPS (Caddy)'
 ufw allow 443/udp comment 'HTTP/3 (Caddy, QUIC)'
 
-# Explicit deny, even though nothing publishes these ports to the host — belt
-# and suspenders against a future docker-compose.prod.yml edit that accidentally
-# adds a `ports:` mapping for one of these.
-ufw deny 5432/tcp comment 'Postgres — never public'
-ufw deny 5672/tcp comment 'RabbitMQ AMQP — never public'
-ufw deny 15672/tcp comment 'RabbitMQ management UI — never public'
+# These `ufw deny` lines do NOT protect a container whose port is actually
+# published (`ports:` in docker-compose.prod.yml) — Docker manipulates
+# iptables directly, inserting its own ACCEPT rules into the DOCKER/FORWARD
+# chains ahead of ufw's INPUT-chain rules, so a published container port stays
+# reachable from the internet regardless of what ufw says. This is a
+# well-known Docker+ufw interaction, not a bug in ufw. Keep these as
+# documentation of intent / defense against non-Docker services binding these
+# ports directly on the host — the REAL mitigation for containers is:
+#   1. docker-compose.prod.yml simply never publishes a `ports:` entry for
+#      postgres or rabbitmq (current state — verify this stays true on every
+#      change, since ufw cannot catch a regression here);
+#   2. if a port ever does need to be reachable from the host but NOT the
+#      internet, bind it to loopback only, e.g. `ports: ["127.0.0.1:5432:5432"]`,
+#      not `["5432:5432"]`;
+#   3. for a hard guarantee enforced at the firewall layer regardless of
+#      compose config, add rules to the `DOCKER-USER` chain instead (the one
+#      chain Docker itself never overwrites and evaluates before its own
+#      permissive rules), e.g.:
+#      iptables -I DOCKER-USER -p tcp --dport 5432 -j DROP
+#      iptables -I DOCKER-USER -p tcp --dport 5672 -j DROP
+#      iptables -I DOCKER-USER -p tcp --dport 15672 -j DROP
+#      (not added here automatically — do this deliberately on the VPS if you
+#      want defense-in-depth beyond "compose never publishes the port").
+ufw deny 5432/tcp comment 'Postgres — non-Docker services only; see note above re: Docker+ufw'
+ufw deny 5672/tcp comment 'RabbitMQ AMQP — non-Docker services only; see note above re: Docker+ufw'
+ufw deny 15672/tcp comment 'RabbitMQ management UI — non-Docker services only; see note above re: Docker+ufw'
 
 ufw --force enable
 ufw status verbose

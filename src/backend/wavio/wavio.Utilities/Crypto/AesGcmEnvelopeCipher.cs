@@ -3,12 +3,18 @@ using System.Security.Cryptography;
 namespace wavio.Utilities.Crypto;
 
 /// <summary>
-/// AES-256-GCM envelope cipher (see <see cref="IEnvelopeCipher"/> for the rationale).
+/// AES-256-GCM envelope cipher (see <see cref="IEnvelopeCipher"/> for the rationale,
+/// including why callers should pass row/tenant-binding AAD).
 ///
 /// Wire format (inside the base64 payload) — fixed-size fields first so the only
 /// variable-length field, the data ciphertext, is simply "everything remaining":
 ///   [12-byte key-nonce][16-byte key-tag][32-byte wrapped data key]
 ///   [12-byte data-nonce][16-byte data-tag][data ciphertext bytes]
+///
+/// The caller-supplied AAD is folded into AES-GCM's associatedData for BOTH the
+/// key-wrap and data layers (not stored in the payload — the caller must supply
+/// the same AAD again at decrypt time). It is not itself confidential, only
+/// authenticated: a wrong or missing AAD makes GCM's tag check fail.
 ///
 /// Stored value format: "envelope:v1:" + Base64(above).
 /// </summary>
@@ -21,6 +27,8 @@ public sealed class AesGcmEnvelopeCipher : IEnvelopeCipher
     private const int KeySizeBytes = 32; // AES-256, for both master and data keys
     private const int HeaderSize = NonceSize + TagSize + KeySizeBytes + NonceSize + TagSize;
 
+    private static readonly byte[] EmptyAad = [];
+
     private readonly byte[] _masterKey;
 
     public AesGcmEnvelopeCipher(byte[] masterKey)
@@ -31,15 +39,16 @@ public sealed class AesGcmEnvelopeCipher : IEnvelopeCipher
     }
 
     /// <inheritdoc />
-    public string Encrypt(byte[] plaintext)
+    public string Encrypt(byte[] plaintext, byte[]? aad)
     {
         ArgumentNullException.ThrowIfNull(plaintext);
+        var aadBytes = aad ?? EmptyAad;
 
         var dataKey = RandomNumberGenerator.GetBytes(KeySizeBytes);
         try
         {
-            var (dataNonce, dataTag, dataCiphertext) = AesGcmEncrypt(dataKey, plaintext);
-            var (keyNonce, keyTag, wrappedKey) = AesGcmEncrypt(_masterKey, dataKey);
+            var (dataNonce, dataTag, dataCiphertext) = AesGcmEncrypt(dataKey, plaintext, aadBytes);
+            var (keyNonce, keyTag, wrappedKey) = AesGcmEncrypt(_masterKey, dataKey, aadBytes);
 
             var payload = new byte[HeaderSize + dataCiphertext.Length];
             var offset = 0;
@@ -59,14 +68,15 @@ public sealed class AesGcmEnvelopeCipher : IEnvelopeCipher
     }
 
     /// <inheritdoc />
-    public byte[] Decrypt(string envelope)
+    public byte[] Decrypt(string envelope, byte[]? aad)
     {
+        var aadBytes = aad ?? EmptyAad;
         var fields = ParseEnvelope(envelope);
 
-        var dataKey = AesGcmDecrypt(_masterKey, fields.KeyNonce, fields.KeyTag, fields.WrappedKey);
+        var dataKey = AesGcmDecrypt(_masterKey, fields.KeyNonce, fields.KeyTag, fields.WrappedKey, aadBytes);
         try
         {
-            return AesGcmDecrypt(dataKey, fields.DataNonce, fields.DataTag, fields.DataCiphertext);
+            return AesGcmDecrypt(dataKey, fields.DataNonce, fields.DataTag, fields.DataCiphertext, aadBytes);
         }
         finally
         {
@@ -75,17 +85,18 @@ public sealed class AesGcmEnvelopeCipher : IEnvelopeCipher
     }
 
     /// <inheritdoc />
-    public string Rewrap(string envelope, byte[] newMasterKey)
+    public string Rewrap(string envelope, byte[] newMasterKey, byte[]? aad)
     {
         ArgumentNullException.ThrowIfNull(newMasterKey);
         RequireKeySize(newMasterKey, nameof(newMasterKey));
+        var aadBytes = aad ?? EmptyAad;
 
         var fields = ParseEnvelope(envelope);
 
-        var dataKey = AesGcmDecrypt(_masterKey, fields.KeyNonce, fields.KeyTag, fields.WrappedKey);
+        var dataKey = AesGcmDecrypt(_masterKey, fields.KeyNonce, fields.KeyTag, fields.WrappedKey, aadBytes);
         try
         {
-            var (keyNonce, keyTag, wrappedKey) = AesGcmEncrypt(newMasterKey, dataKey);
+            var (keyNonce, keyTag, wrappedKey) = AesGcmEncrypt(newMasterKey, dataKey, aadBytes);
 
             var payload = new byte[HeaderSize + fields.DataCiphertext.Length];
             var offset = 0;
@@ -112,23 +123,23 @@ public sealed class AesGcmEnvelopeCipher : IEnvelopeCipher
                 paramName);
     }
 
-    private static (byte[] Nonce, byte[] Tag, byte[] Ciphertext) AesGcmEncrypt(byte[] key, byte[] plaintext)
+    private static (byte[] Nonce, byte[] Tag, byte[] Ciphertext) AesGcmEncrypt(byte[] key, byte[] plaintext, byte[] aad)
     {
         var nonce = RandomNumberGenerator.GetBytes(NonceSize);
         var tag = new byte[TagSize];
         var ciphertext = new byte[plaintext.Length];
 
         using var aes = new AesGcm(key, TagSize);
-        aes.Encrypt(nonce, plaintext, ciphertext, tag);
+        aes.Encrypt(nonce, plaintext, ciphertext, tag, aad);
 
         return (nonce, tag, ciphertext);
     }
 
-    private static byte[] AesGcmDecrypt(byte[] key, byte[] nonce, byte[] tag, byte[] ciphertext)
+    private static byte[] AesGcmDecrypt(byte[] key, byte[] nonce, byte[] tag, byte[] ciphertext, byte[] aad)
     {
         var plaintext = new byte[ciphertext.Length];
         using var aes = new AesGcm(key, TagSize);
-        aes.Decrypt(nonce, ciphertext, tag, plaintext);
+        aes.Decrypt(nonce, ciphertext, tag, plaintext, aad);
         return plaintext;
     }
 
