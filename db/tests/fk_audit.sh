@@ -24,9 +24,30 @@ ADMIN_URL="${ADMIN_URL:-postgresql://postgres:postgres@${PGHOST}:${PGPORT}/${PGD
 
 psql_q() { psql "$ADMIN_URL" -v ON_ERROR_STOP=1 -qAtX -c "$1"; }
 
+# Runs a query and populates the named array with one element per output row.
+# NOT `mapfile -t arr < <(psql_q ...)`: process substitution's exit status is
+# invisible to `set -e`/pipefail, so a failed connection (e.g. bad password)
+# would otherwise be swallowed — mapfile happily "reads" zero lines from the
+# broken pipe and the gate reports "0 columns checked" and exits 0. Capturing
+# into a variable first makes the failure visible to `||`.
+psql_lines() {
+    local -n _out_array="$1"
+    local raw
+    raw="$(psql_q "$2")" || {
+        echo "[fk_audit] psql query failed — aborting (see error above)." >&2
+        exit 1
+    }
+    _out_array=()
+    # Guard the empty-result edge case: `mapfile <<< ""` yields one phantom
+    # empty-string element instead of a zero-length array.
+    if [[ -n "$raw" ]]; then
+        mapfile -t _out_array <<< "$raw"
+    fi
+}
+
 echo "== FK audit: every uuid *_id column must have a FK, or be allowlisted =="
 
-mapfile -t all_id_columns < <(psql_q "
+psql_lines all_id_columns "
     SELECT n.nspname || '.' || c.relname || '.' || a.attname
     FROM pg_attribute a
     JOIN pg_class c ON c.oid = a.attrelid
@@ -40,9 +61,9 @@ mapfile -t all_id_columns < <(psql_q "
       AND NOT c.relispartition
       AND n.nspname NOT IN ('pg_catalog', 'information_schema')
     ORDER BY 1;
-")
+"
 
-mapfile -t fk_columns < <(psql_q "
+psql_lines fk_columns "
     SELECT DISTINCT n.nspname || '.' || c.relname || '.' || a.attname
     FROM pg_constraint co
     JOIN pg_class c ON c.oid = co.conrelid
@@ -51,7 +72,7 @@ mapfile -t fk_columns < <(psql_q "
     JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ck.attnum
     WHERE co.contype = 'f'
     ORDER BY 1;
-")
+"
 
 mapfile -t allowlist < <(grep -v '^[[:space:]]*#' "$ALLOWLIST_FILE" | grep -v '^[[:space:]]*$' || true)
 
