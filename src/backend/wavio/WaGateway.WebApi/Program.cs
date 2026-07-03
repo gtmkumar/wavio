@@ -51,7 +51,10 @@ builder.Services.AddSharedDataModel(
 // ── wa-gateway-svc bounded-context composition ───────────────────────────────────────
 builder.Services
     .AddWaGatewayApplication()                          // validators + command/query handlers (no mediator)
-    .AddWaGatewayInfrastructure(builder.Configuration); // data surface + external clients
+    .AddWaGatewayInfrastructure(builder.Configuration)  // data surface + external clients
+    // The outbox dispatcher runs with no HttpContext — ICurrentTenant must support an explicit
+    // tenant override so its RLS-scoped writes work. Must come AFTER AddCurrentTenant() above.
+    .ReplaceCurrentTenantWithScopedVersion();
 
 // ── OpenAPI document (+ Bearer scheme & standard error responses) ──────────────
 builder.Services.AddDefaultOpenApi();

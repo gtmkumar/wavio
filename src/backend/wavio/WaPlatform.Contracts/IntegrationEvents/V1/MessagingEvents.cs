@@ -75,6 +75,42 @@ public sealed record MessageStatusV1 : IntegrationEvent
 }
 
 /// <summary>
+/// <c>wa.message.send_failed.v1</c> — an outbound send permanently failed (issue #14): either
+/// the Meta Graph API returned a non-retryable error (131026 not-on-WhatsApp, 131047
+/// re-engagement required, 131049 per-user marketing limit, or in-process retries exhausted),
+/// or a pre-dispatch policy rejected the send before it ever reached the outbox (WINDOW_CLOSED,
+/// suppression list, messaging-tier headroom exhausted — spec §4.2, ADR-005).
+///
+/// Deliberately a NEW event rather than reusing <see cref="MessageStatusV1"/>: that event's
+/// <c>Wamid</c> is required, but a Graph rejection or a pre-dispatch rejection both happen
+/// BEFORE Meta ever assigns a wamid, so there is nothing to put there. This carries the
+/// internal <see cref="OutboundMessageId"/> as the correlation id instead.
+/// </summary>
+public sealed record MessageSendFailedV1 : IntegrationEvent
+{
+    public const string Name = "wa.message.send_failed.v1";
+    public override string EventName => Name;
+
+    /// <summary>The gateway's own outbound_messages.id — the correlation id for a send that
+    /// never got as far as a wamid.</summary>
+    public required Guid OutboundMessageId { get; init; }
+
+    public required string PhoneNumberId { get; init; }
+
+    /// <summary>Recipient WhatsApp id (PII — mask in logs).</summary>
+    public required string ToWaId { get; init; }
+
+    public required string MessageType { get; init; }
+
+    /// <summary>Meta numeric error code (as a string, e.g. "131026") for a Graph rejection, or
+    /// one of our own pre-dispatch reason codes: WINDOW_CLOSED | SUPPRESSED | TIER_EXHAUSTED |
+    /// RETRIES_EXHAUSTED.</summary>
+    public required string ErrorCode { get; init; }
+
+    public string? ErrorMessage { get; init; }
+}
+
+/// <summary>
 /// <c>wa.window.closing.v1</c> — a customer-service window is approaching expiry
 /// (published by the Session Window Manager, spec §4.5) so verticals can prompt
 /// agents / schedule template follow-ups before free-form sends start being rejected.

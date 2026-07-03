@@ -1,8 +1,10 @@
 using wavio.SharedDataModel.Entities.IdentityAccess;
 using wavio.SharedDataModel.Entities.Ingest;
 using wavio.SharedDataModel.Entities.Kernel;
+using wavio.SharedDataModel.Entities.Messaging;
 using wavio.SharedDataModel.Entities.Sessions;
 using wavio.SharedDataModel.Entities.TenancyOrg;
+using wavio.SharedDataModel.Entities.Waba;
 using Microsoft.EntityFrameworkCore;
 
 namespace wavio.SharedDataModel.Persistence;
@@ -54,6 +56,13 @@ public class WavioDbContext : DbContext
     // sessions (issue #15: Session Window Manager)
     public DbSet<ConversationWindow> ConversationWindows => Set<ConversationWindow>();
     public DbSet<WindowEvent> WindowEvents => Set<WindowEvent>();
+
+    // messaging (issue #14: wa-gateway-svc outbound send API)
+    public DbSet<OutboundMessage> OutboundMessages => Set<OutboundMessage>();
+    public DbSet<OutboundOutboxEntry> OutboundOutboxEntries => Set<OutboundOutboxEntry>();
+
+    // waba (issue #14: dispatcher's internal-id -> Meta phone_number_id bridge)
+    public DbSet<WabaPhoneNumber> WabaPhoneNumbers => Set<WabaPhoneNumber>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
