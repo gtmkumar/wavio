@@ -1,15 +1,10 @@
 ---
 name: handoff-issue-10
-<<<<<<< HEAD
 description: Handoff notes for service devs (Wave 1 V007-V009) and the dotnet developer (issue #10)
-=======
-description: What the dotnet developer must do next on branch feature/10-db-migrations (issue #10)
->>>>>>> origin/main
 metadata:
   type: project
 ---
 
-<<<<<<< HEAD
 # Handoff — Wave 1 schemas, issue #17 (2026-07-03)
 
 For the service developers building #13/#14/#15/#16 against V007–V009
@@ -39,8 +34,6 @@ For the service developers building #13/#14/#15/#16 against V007–V009
   feature/11-ci-pipeline): all Wave 1 uuid *_id columns have FKs, so the CI
   gate needs no changes for V007–V009.
 
-=======
->>>>>>> origin/main
 # Handoff to dotnet developer — issue #10 (2026-07-03)
 
 Branch: `feature/10-db-migrations` (continue here; DB side is done and

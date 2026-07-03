@@ -1,15 +1,10 @@
 ---
 name: status
-<<<<<<< HEAD
 description: Latest work status of the database-architect agent (issues #10 + #17, dated 2026-07-03)
-=======
-description: Latest work status of the database-architect agent (issue #10, dated 2026-07-03)
->>>>>>> origin/main
 metadata:
   type: project
 ---
 
-<<<<<<< HEAD
 # Status — 2026-07-03 (issue #17, Wave 1 — later the same day)
 
 Branch `feature/17-wave1-migrations`, stacked on `feature/10-db-migrations`
@@ -27,8 +22,6 @@ scratchpad — it is NOT on this branch) passed with 84 columns, zero new
 allowlist entries. Wave 1 rationale in [[decisions-issue-10]], service-dev
 notes in [[handoff-issue-10]].
 
-=======
->>>>>>> origin/main
 # Status — 2026-07-03 (issue #10)
 
 Delivered on branch `feature/10-db-migrations` (do not merge to main until the

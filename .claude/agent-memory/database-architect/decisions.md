@@ -1,15 +1,10 @@
 ---
 name: decisions-issue-10
-<<<<<<< HEAD
 description: Design decisions for V001-V009 migrations (RLS patterns, partitioning, EF-derived DDL, Wave 1 messaging/sessions/templates)
-=======
-description: Design decisions and EF-derived DDL surprises for the V001-V006 migrations
->>>>>>> origin/main
 metadata:
   type: project
 ---
 
-<<<<<<< HEAD
 # Design decisions — Wave 1, V007–V009 (issue #17, 2026-07-03)
 
 - **24h idempotency window** (messaging.outbound_messages): partial unique
@@ -40,8 +35,6 @@ metadata:
 - billing.message_costs.wamid uniqueness belongs to Wave 2 billing;
   message_statuses only captures raw pricing/conversation jsonb.
 
-=======
->>>>>>> origin/main
 # Design decisions — issue #10 migrations (2026-07-03)
 
 ## RLS pattern
