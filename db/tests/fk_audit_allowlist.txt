@@ -1,0 +1,32 @@
+# FK-audit allowlist (issue #11).
+#
+# db/tests/fk_audit.sh fails CI if any uuid *_id column has no FK constraint,
+# UNLESS its "schema.table.column" is listed here. Every entry below is also
+# documented, with its reason, in db/README.md "FK audit rules" — keep the two in
+# sync. Do not add an entry just to silence the gate; add the real FK instead
+# unless the exclusion is genuinely deliberate.
+#
+# One "schema.table.column" per line. Blank lines and #-comments are ignored.
+
+# Polymorphic references — a sibling discriminator column decides the target
+# table, so a single FK isn't possible.
+system.audit_log.resource_id
+identity_access.audit_logs.resource_id
+identity_access.user_permission_override.scope_id
+identity_access.user_scope_memberships.scope_id
+identity_access.otp_codes.reference_id
+kernel.file_attachments.owner_id
+kernel.file_attachments.uploaded_by_id
+kernel.outbox_events.aggregate_id
+
+# Trace/correlation identifiers — not references to another row.
+system.audit_log.request_id
+system.audit_log.correlation_id
+identity_access.audit_logs.request_id
+identity_access.audit_logs.correlation_id
+kernel.outbox_events.correlation_id
+kernel.outbox_events.causation_id
+
+# Cross-service identifier arriving over RabbitMQ — may reference another
+# service's outbox, not resolvable via a local FK.
+kernel.outbox_consumed_events.event_id
