@@ -88,6 +88,42 @@ include every stacked branch, which doesn't scale) for this workflow to fire on
    `pull_request:` trigger actually fires on a non-`main`-base PR) and all four
    jobs passed: https://github.com/gtmkumar/wavio/actions/runs/28661105224
 
+## QA-found bug, fixed 2026-07-03 (post-review, same day)
+QA (independent adversarial reproduction, not just re-reading the diff) found a
+real bug in `fk_audit.sh`: `mapfile -t arr < <(psql_q ...)` used process
+substitution, whose exit status `set -e`/`pipefail` **cannot see** — bash only
+traps failures in the direct command list, not inside `<(...)`. With a bad
+`ADMIN_URL` password, `psql` printed an auth error to stderr but `mapfile` still
+"succeeded" (reading zero bytes), so the gate reported "Checked 0 uuid *_id
+column(s)" and **exited 0** — the exact silent-pass failure mode this gate exists
+to prevent (147-missing-FKs lesson).
+
+Fix: capture query output into a variable first (`raw="$(psql_q "$q")" || exit
+1`), which *does* propagate the command-substitution's exit status, then
+`mapfile -t arr <<< "$raw"` from the variable — guarding `[[ -n "$raw" ]]` first
+since `mapfile <<< ""` would otherwise create a one-element array holding an
+empty string instead of a zero-length array. Wrapped in a `psql_lines
+<array-name> <query>` helper (uses `local -n` nameref) so both queries share the
+fix instead of duplicating it.
+
+Verified all three required cases after the fix, same live DB:
+1. Bad password (`ADMIN_URL` with wrong password) → now exits 1 with a clear
+   `[fk_audit] psql query failed — aborting` message, instead of silently
+   reporting 0 checked / exit 0.
+2. Good connection → byte-identical behavior to before the fix: 53 checked, 15
+   allowlisted, 0 violations, exit 0.
+3. Removed-allowlist-entry negative case (same procedure as before: pull
+   `kernel.outbox_events.aggregate_id` out of the allowlist in place, restore
+   after) → still correctly fails naming that exact column.
+
+Pushed as a follow-up commit on `feature/11-ci-pipeline`; new Actions run on PR
+#38 green again: https://github.com/gtmkumar/wavio/actions/runs/28661908138.
+
+**Takeaway for future bash gate scripts**: never rely on `set -e`/`pipefail` to
+catch a failure inside `<(process substitution)` used as a read source —
+capture to a variable with `x="$(cmd)" || handle_failure` instead, and only
+`mapfile`/split the variable once you know the command actually succeeded.
+
 ## Local tooling note
 This machine's default `/bin/bash` is 3.2 (no `mapfile`, no `declare -A`) — had to
 `brew install bash` (5.3.15) to run `fk_audit.sh` locally at all. GitHub Actions
