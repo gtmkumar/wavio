@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
@@ -12,16 +13,39 @@ namespace WaIntel.Infrastructure.Messaging;
 /// </summary>
 public sealed partial class RabbitMqConnectionManager : IAsyncDisposable
 {
+    private const string DevelopmentOnlyFallback = "amqp://guest:guest@localhost:5672";
+
     private readonly string _connectionString;
     private readonly ILogger<RabbitMqConnectionManager> _logger;
     private readonly SemaphoreSlim _connectLock = new(1, 1);
 
     private IConnection? _connection;
 
-    public RabbitMqConnectionManager(IConfiguration configuration, ILogger<RabbitMqConnectionManager> logger)
+    /// <summary>
+    /// Fails closed outside Development when unconfigured — never silently talks to a
+    /// would-be-default local broker in production. This mirrors the fix already applied to
+    /// WaIngest.Infrastructure's connection manager (issue #13 security review, S2); this
+    /// branch was cut before that fix landed, so it needed the same treatment (issue #15
+    /// security review, S1). WaIntel.WebApi's Program.cs performs the same check eagerly at boot
+    /// — this is the second, independent layer for any other composition root that constructs
+    /// this class without that guard.
+    /// </summary>
+    public RabbitMqConnectionManager(
+        IConfiguration configuration, IHostEnvironment environment, ILogger<RabbitMqConnectionManager> logger)
     {
-        _connectionString = configuration.GetConnectionString("RabbitMq")
-            ?? "amqp://guest:guest@localhost:5672";
+        var configured = configuration.GetConnectionString("RabbitMq");
+
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            if (!environment.IsDevelopment())
+                throw new InvalidOperationException(
+                    "ConnectionStrings:RabbitMq is required outside Development. Provide it via " +
+                    "ConnectionStrings__RabbitMq env var or a secrets provider. Wavio will NOT start without it.");
+
+            configured = DevelopmentOnlyFallback;
+        }
+
+        _connectionString = configured;
         _logger = logger;
     }
 
