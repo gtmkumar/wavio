@@ -43,6 +43,32 @@ rm deploy/secrets/prod.env deploy/secrets/jwt-private-key.pem
 To change a secret later: repeat the same commands (decrypt if you need the old
 value first, edit, re-encrypt, commit the new `.enc`).
 
+## The committed `prod.env.enc` / `jwt-private-key.pem.enc` are demo files — not real secrets
+
+`deploy/secrets/prod.env.enc` and `deploy/secrets/jwt-private-key.pem.enc` **are
+committed to this repo**, encrypted under the same throwaway demo age
+recipient named in `.sops.yaml`. This exists to prove the SOPS/age pipeline
+actually works end to end from a fresh clone — not to ship anything usable:
+
+- Every value inside `prod.env.enc` is a literal placeholder string like
+  `CHANGE_ME_FAKE_DEMO_VALUE_DO_NOT_USE_IN_PRODUCTION` — there is nothing
+  secret to leak even if someone did decrypt it.
+- `jwt-private-key.pem.enc` wraps a throwaway RSA key generated solely for
+  this demo, never used to sign anything, associated with no real deployment.
+- The demo age keypair's **private** half was used once, locally, to produce
+  these two files (and to verify they decrypt back byte-identical to the
+  plaintext that was encrypted) — then deleted. It is not stored anywhere,
+  not in this repo, not in agent memory, not on any machine after that
+  verification. Nobody, including the author of this PR, can decrypt these
+  two files anymore.
+- **This means the committed demo recipient in `.sops.yaml` is now write-only
+  from everyone's perspective** — exactly the state you want before real
+  secrets ever get encrypted with it. Per the "One-time setup" section above:
+  generate your **own** age keypair and replace `.sops.yaml`'s recipient
+  before encrypting anything real. Never reuse the demo recipient for actual
+  production values, even though its public half is sitting in git — a
+  public key being public doesn't make it *yours*.
+
 ## Decrypting on the VPS (deploy time)
 
 The VPS needs the private key too (out-of-band — scp it once over SSH, or paste

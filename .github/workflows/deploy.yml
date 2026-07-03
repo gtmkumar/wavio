@@ -87,7 +87,22 @@ jobs:
     needs: build-and-push
     if: github.event_name == 'workflow_dispatch' && inputs.deploy_to_vps
     steps:
+      # No VPS exists yet, so VPS_HOST/VPS_USER/VPS_SSH_KEY aren't configured —
+      # this workflow must still be mergeable. Check for the secrets explicitly
+      # and skip cleanly (clear log message, job succeeds) rather than let the
+      # ssh-action step fail with a cryptic connection error.
+      - name: Check VPS secrets are configured
+        id: secrets-check
+        run: |
+          if [ -z "${{ secrets.VPS_HOST }}" ] || [ -z "${{ secrets.VPS_USER }}" ] || [ -z "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VPS_HOST/VPS_USER/VPS_SSH_KEY are not all configured yet — skipping the actual rollout. Expected before a VPS exists; configure these repo secrets when ready (see deploy/README.md \"Production\")."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Roll out
+        if: steps.secrets-check.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}

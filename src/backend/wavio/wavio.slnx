@@ -36,4 +36,7 @@
     <Project Path="WaIntel.Infrastructure/WaIntel.Infrastructure.csproj" />
   </Folder>
   <Project Path="wavio.Gateway/wavio.Gateway.csproj" />
+  <Folder Name="/tests/">
+    <Project Path="wavio.Utilities.Tests/wavio.Utilities.Tests.csproj" />
+  </Folder>
 </Solution>
