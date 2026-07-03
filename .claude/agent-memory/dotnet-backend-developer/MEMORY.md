@@ -1,4 +1,8 @@
 - [Issue #9 dev infra: what was built](issue-9-dev-infra.md) — docker-compose.dev.yml, Postgres/RabbitMQ bootstrap, file locations
-- [Core identity depends on issue #10 schema](core-identity-seeder-needs-schema.md) — why core.WebApi still crash-loops after #9, and why that's expected
+- [Core identity seeder needed schema — RESOLVED by #10](core-identity-seeder-needs-schema.md) — history of the crash-loop and its 2026-07-03 resolution
 - [Local machine uses Colima, not Docker Desktop](local-docker-backend-colima.md) — how to start the docker daemon on this dev machine
 - [Aspire dcp quirks when probing/killing services](aspire-dcp-quirks.md) — hung curl probes and orphaned processes when stopping the AppHost
+- [Issue #10 .NET wiring: what changed](issue-10-dotnet-wiring.md) — DbMigrator project, EF remaps, RLS GUC rename, full verification steps
+- [Issue #10 design decisions](decisions.md) — why a custom runner not DbUp, the Npgsql regclass cast bug, remap rationale
+- [Current status across #9/#10](status.md) — quick pointer to what's done and what's next
+- [Handoff after #10](handoff.md) — what issue #11 (CI) and #12 (VPS deploy) need to pick up

@@ -7,7 +7,7 @@ namespace wavio.SharedDataModel.Persistence.Interceptors;
 
 /// <summary>
 /// Sets PostgreSQL session-level config variables for Row-Level Security on every connection open.
-/// The DB RLS policies read: app.current_tenant_id, app.current_user_id, and app.bypass_rls.
+/// The DB RLS policies read: app.tenant_id (spec §5 canonical GUC), app.current_user_id, and app.bypass_rls.
 /// Empty string is used for null/unset values — RLS policies treat empty as "unset".
 /// </summary>
 public sealed class RlsConnectionInterceptor : DbConnectionInterceptor
@@ -55,9 +55,9 @@ public sealed class RlsConnectionInterceptor : DbConnectionInterceptor
         // set_config(setting_name, value, is_local) — false = session-level
         cmd.CommandText = """
             SELECT
-                set_config('app.current_tenant_id', @tenant_id,  false),
-                set_config('app.current_user_id',    @user_id,    false),
-                set_config('app.bypass_rls',         @bypass_rls, false)
+                set_config('app.tenant_id',       @tenant_id,  false),
+                set_config('app.current_user_id', @user_id,    false),
+                set_config('app.bypass_rls',      @bypass_rls, false)
             """;
 
         AddParameter(cmd, "@tenant_id",  tenantId);

@@ -10,21 +10,43 @@ schema** — never redefine tables anywhere else (markdown, EF model, etc.).
   order. No down-migrations — fix forward with a new version.
 - Tracking: `public.schema_migrations (version, applied_at)`. Each file
   self-registers its version at the bottom (`ON CONFLICT DO NOTHING`), so plain
-  `psql -f` application stays consistent. The .NET migration runner (built by
-  the backend team, issue #10 follow-up) must:
-  1. connect with the **Admin** (superuser) connection string, not `app_user`
+  `psql -f` application stays consistent. The .NET migration runner
+  (`wavio.DbMigrator`, below):
+  1. connects with the **Admin** (superuser) connection string, not `app_user`
      (migrations create schemas/roles/policies);
-  2. `SELECT version FROM public.schema_migrations` and apply only newer files,
-     in filename order, each inside a transaction;
-  3. treat the self-registering `INSERT` in each file as the completion marker.
+  2. `SELECT version FROM public.schema_migrations` and applies only newer
+     files, in filename order, each inside a transaction;
+  3. treats the self-registering `INSERT` in each file as the completion marker.
 - Every file must be `sqlfluff` clean (`uvx sqlfluff lint db/migrations/`,
   config in repo-root `.sqlfluff`) and must apply to a fresh PostgreSQL 16
   with zero errors — both enforced in CI (issue #11).
 
-Apply locally:
+### Migration runner (`wavio.DbMigrator`)
+
+`src/backend/wavio/wavio.DbMigrator` is the canonical way to apply migrations —
+locally, in CI, and later on the VPS. `public.schema_migrations` doesn't exist
+before V001 runs; the runner treats that as "nothing applied yet", not an error.
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d --wait
+
+# Uses the ConnectionStrings__Admin env var if set, else the docker-compose.dev.yml
+# default (postgres/postgres@localhost:5432/waplatform); the migrations directory is
+# auto-detected by walking up from the build output to repo-root/db/migrations.
+dotnet run --project src/backend/wavio/wavio.DbMigrator
+
+# Explicit overrides (CI / non-default environments):
+dotnet run --project src/backend/wavio/wavio.DbMigrator -- \
+  --connection-string "Host=localhost;Port=5432;Database=waplatform;Username=postgres;Password=postgres" \
+  --migrations-dir db/migrations
+
+./db/tests/rls_smoke_test.sh
+```
+
+Applying with plain `psql` also works, since each file is a self-contained,
+idempotent script:
+
+```bash
 for f in db/migrations/V0*.sql; do
   PGPASSWORD=postgres psql -h localhost -U postgres -d waplatform \
     -v ON_ERROR_STOP=1 -q -f "$f"
