@@ -321,6 +321,40 @@ public class MetaWebhookNormalizerTests
     }
 
     [Fact]
+    public void Normalize_StatusValueLongerThanDedupeColumnBudget_TruncatesDedupeKeyButKeepsFullStatusOnEvent()
+    {
+        // Regression test (security review, N1): ingest.webhook_dedupe.event_type is varchar(50).
+        // {routingKey}:{status} must always fit, or the dedupe INSERT fails AFTER a successful
+        // publish (WebhookProcessor's ordering) — leaving the row 'failed' and causing a replay
+        // to publish a real duplicate. Meta's own status vocabulary never gets close, but this
+        // must never depend on that being true.
+        var longStatus = new string('x', 60);
+        var root = Parse($$"""
+        {
+          "entry": [{
+            "id": "waba-123",
+            "changes": [{
+              "field": "messages",
+              "value": {
+                "metadata": { "phone_number_id": "phone-1" },
+                "statuses": [{ "id": "wamid.LONGSTATUS", "status": "{{longStatus}}", "timestamp": "1700000000" }]
+              }
+            }]
+          }]
+        }
+        """);
+
+        var result = Assert.Single(MetaWebhookNormalizer.Normalize(root, out _));
+
+        Assert.True(result.DedupeEventType.Length <= 50,
+            $"dedupe event_type must fit ingest.webhook_dedupe.event_type varchar(50), was {result.DedupeEventType.Length}");
+        Assert.StartsWith(MessageStatusV1.Name + ":", result.DedupeEventType);
+
+        // Only the dedupe KEY is bounded — the published event itself keeps full fidelity.
+        Assert.Equal(longStatus, Assert.IsType<MessageStatusV1>(result.Event).Status);
+    }
+
+    [Fact]
     public void Normalize_UnrecognizedField_IsSkippedNotThrown()
     {
         var root = Parse("""

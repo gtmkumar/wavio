@@ -28,8 +28,10 @@ public partial class Webhooks : IEndpointGroup
     private const string SignatureHeaderName = "X-Hub-Signature-256";
 
     // Defense in depth beyond Kestrel's global request-size limit: real Meta webhook payloads
-    // are a few KB; anything approaching 1MB is not a legitimate delivery.
-    private const long MaxBodyBytes = 1_000_000;
+    // are a few KB; anything approaching 1MB is not a legitimate delivery. Enforced by bounding
+    // the read itself (TryReadBoundedBodyAsync), not just by trusting the Content-Length header —
+    // a chunked-encoded request has no Content-Length and would otherwise bypass this entirely.
+    internal const long MaxBodyBytes = 1_000_000;
 
     // Persisted alongside the payload for forensics/replay debugging. Never Authorization or any
     // header carrying a secret — the signature header value itself is recorded via
@@ -43,10 +45,13 @@ public partial class Webhooks : IEndpointGroup
         groupBuilder.MapGet(VerifySubscription, "").AllowAnonymous();
         groupBuilder.MapPost(ReceiveWebhook, "").AllowAnonymous();
 
-        // Operational recovery tool, not a tenant-facing endpoint — requires an authenticated
-        // platform caller. TODO(#16/#20 follow-up): gate on a dedicated platform-ops permission
-        // once the permission catalog has one; "any authenticated user" is the Wave 1 floor.
-        groupBuilder.MapPost(Replay, "/replay").RequireAuthorization();
+        // Operational recovery tool, not a tenant-facing endpoint. Gated on a permission code
+        // ("ingest.webhooks.replay") that is deliberately NOT in core's seeded permission
+        // catalog (core.Infrastructure/Seeders/IdentitySeeder.cs) — no tenant-scoped role can
+        // ever be granted it, so only a platform_admin JWT passes, via PermissionHandler's
+        // Gate 2 bypass (user_type == platform_admin). If a non-platform-admin operator role
+        // should ever need this, add the permission definition + a grant there first.
+        groupBuilder.MapPost(Replay, "/replay").RequireAuthorization("permission:ingest.webhooks.replay");
     }
 
     // ── GET: subscription verification handshake (Meta docs: hub.mode/hub.verify_token/hub.challenge) ─
@@ -78,7 +83,10 @@ public partial class Webhooks : IEndpointGroup
 
     // ── POST: webhook delivery ──────────────────────────────────────────────────────────────
 
-    private static async Task<IResult> ReceiveWebhook(
+    // internal (not private): WaIngest.Tests exercises this directly against a fabricated
+    // HttpContext to prove the signature-invalid path never persists/parses the real body
+    // (see WaIngest.WebApi.csproj's InternalsVisibleTo).
+    internal static async Task<IResult> ReceiveWebhook(
         HttpContext context,
         IDispatcher dispatcher,
         IWebhookIngestBuffer buffer,
@@ -89,23 +97,43 @@ public partial class Webhooks : IEndpointGroup
         if (context.Request.ContentLength is > MaxBodyBytes)
             return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
 
-        // Read the exact raw bytes ONCE, before any parsing. HMAC verification must run against
-        // Meta's exact byte stream — re-serializing parsed JSON would never reproduce it
-        // byte-for-byte and would always fail signature verification.
-        byte[] rawBody;
-        await using (var bodyStream = new MemoryStream())
+        // Bounded read: caps memory regardless of Content-Length/chunked transfer-encoding —
+        // aborts as soon as the cumulative byte count would exceed MaxBodyBytes, so a malicious
+        // or buggy chunked sender never gets more than one buffer's worth over the limit
+        // resident in memory.
+        var rawBody = await TryReadBoundedBodyAsync(context.Request.Body, cancellationToken);
+        if (rawBody is null)
+            return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+
+        // Signature verification runs BEFORE any parsing or persistence of the request body
+        // (spec §4.3/§5: "reject unsigned/invalid"; reject-before-deserialize). An
+        // unauthenticated caller's bytes are never written to Postgres and never handed to a
+        // JSON parser — only a small, fixed-shape stub is persisted, purely so we retain a
+        // forensic count/timestamp of probing attempts without giving an attacker a way to fill
+        // the shared database with arbitrary bytes.
+        var signatureHeader = context.Request.Headers[SignatureHeaderName].FirstOrDefault();
+        var signatureValid = MetaWebhookSignatureVerifier.Verify(rawBody, signatureHeader, options.Value.AppSecret);
+
+        if (!signatureValid)
         {
-            await context.Request.Body.CopyToAsync(bodyStream, cancellationToken);
-            if (bodyStream.Length > MaxBodyBytes)
-                return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
-            rawBody = bodyStream.ToArray();
+            var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var reason = signatureHeader is null ? "missing header" : "signature mismatch";
+
+            var stubPayload = JsonSerializer.Serialize(new { note = "signature_invalid", bytes = rawBody.Length });
+            var stubHeadersJson = JsonSerializer.Serialize(CollectPersistedHeaders(context));
+
+            var stubReference = await dispatcher.SendAsync(
+                new PersistRawWebhookCommand(stubPayload, stubHeadersJson, SignatureValid: false), cancellationToken);
+
+            LogSignatureVerificationFailed(logger, reason, remoteIp, stubReference.Id);
+            return Results.Unauthorized();
         }
 
-        // Shape-validate as JSON (no business/typed deserialization — that only ever happens
-        // later, off the ack path, in MetaWebhookNormalizer). Required regardless of signature
-        // outcome: the jsonb column cannot store anything that isn't valid JSON, and Meta always
-        // sends JSON, so a shape failure here means a malformed/non-Meta request, not a security
-        // signal worth persisting.
+        // Only now — with the signature verified — do we touch the real body at all. Shape-
+        // validate as JSON (no business/typed deserialization; that only ever happens later,
+        // off the ack path, in MetaWebhookNormalizer) purely because the jsonb column requires
+        // valid JSON. Meta always sends JSON when it signs a payload, so failing here would mean
+        // something is deeply wrong on Meta's side, not an attack — handled defensively anyway.
         string payloadText;
         try
         {
@@ -117,35 +145,15 @@ public partial class Webhooks : IEndpointGroup
             return Results.BadRequest();
         }
 
-        // Signature check happens BEFORE anything is persisted or dispatched further than the
-        // forensic raw-capture below — an invalid/missing signature never reaches the normalizer
-        // or the bus (spec §4.3, §5: "reject unsigned/invalid").
-        var signatureHeader = context.Request.Headers[SignatureHeaderName].FirstOrDefault();
-        var signatureValid = MetaWebhookSignatureVerifier.Verify(rawBody, signatureHeader, options.Value.AppSecret);
-
-        // Persist BEFORE parsing/processing either way (spec §4.3) — signature_valid=false rows
-        // are kept for security forensics (who is probing this endpoint) but are never enqueued
-        // for dedupe/normalize/publish, and the 401 response tells Meta (or an attacker) nothing
-        // about why it failed.
-        var headers = PersistedHeaderNames
-            .Where(context.Request.Headers.ContainsKey)
-            .ToDictionary(h => h, h => context.Request.Headers[h].ToString());
-        var headersJson = JsonSerializer.Serialize(headers);
+        var headersJson = JsonSerializer.Serialize(CollectPersistedHeaders(context));
 
         var reference = await dispatcher.SendAsync(
-            new PersistRawWebhookCommand(payloadText, headersJson, signatureValid), cancellationToken);
-
-        if (!signatureValid)
-        {
-            LogSignatureVerificationFailed(
-                logger, signatureHeader is null ? "missing header" : "signature mismatch", reference.Id);
-            return Results.Unauthorized();
-        }
+            new PersistRawWebhookCommand(payloadText, headersJson, SignatureValid: true), cancellationToken);
 
         // Hand off to the background worker and ack immediately — normalization/dedupe/publish
         // never run on this request (spec §4.3/§8: <500ms p99 ack, "ingest never drops"). A
         // failure to enqueue does not fail the request: the row is already durable and will be
-        // picked up by the worker's startup recovery scan or the replay tool.
+        // picked up by the worker's periodic recovery sweep or the replay tool.
         try
         {
             await buffer.EnqueueAsync(reference, cancellationToken);
@@ -158,12 +166,34 @@ public partial class Webhooks : IEndpointGroup
         return Results.Ok();
     }
 
+    /// <summary>Reads the request body up to <see cref="MaxBodyBytes"/>; returns null (caller
+    /// should respond 413) the instant the cumulative byte count would exceed it. Bounds memory
+    /// even for chunked-encoded requests, which carry no Content-Length to pre-check.</summary>
+    internal static async Task<byte[]?> TryReadBoundedBodyAsync(Stream body, CancellationToken cancellationToken)
+    {
+        using var buffer = new MemoryStream();
+        var chunk = new byte[81920];
+        int read;
+        while ((read = await body.ReadAsync(chunk, cancellationToken)) > 0)
+        {
+            if (buffer.Length + read > MaxBodyBytes)
+                return null;
+            await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);
+        }
+        return buffer.ToArray();
+    }
+
+    private static Dictionary<string, string> CollectPersistedHeaders(HttpContext context) =>
+        PersistedHeaderNames
+            .Where(context.Request.Headers.ContainsKey)
+            .ToDictionary(h => h, h => context.Request.Headers[h].ToString());
+
     [LoggerMessage(Level = LogLevel.Warning,
-        Message = "Webhook signature verification failed ({Reason}); persisted as raw_webhooks {Id} for forensics, not processed")]
-    private static partial void LogSignatureVerificationFailed(ILogger logger, string reason, Guid id);
+        Message = "Webhook signature verification failed ({Reason}) from {RemoteIp}; persisted stub as raw_webhooks {Id} for forensics, not processed")]
+    private static partial void LogSignatureVerificationFailed(ILogger logger, string reason, string remoteIp, Guid id);
 
     [LoggerMessage(Level = LogLevel.Error,
-        Message = "Failed to enqueue raw_webhooks {Id} for processing — will be recovered by startup scan/replay")]
+        Message = "Failed to enqueue raw_webhooks {Id} for processing — will be recovered by the periodic sweep/replay")]
     private static partial void LogEnqueueFailed(ILogger logger, Exception exception, Guid id);
 
     // ── POST /replay: degraded-mode recovery ────────────────────────────────────────────────

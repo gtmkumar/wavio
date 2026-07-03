@@ -25,4 +25,10 @@
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- Exposes Webhooks.ReceiveWebhook/TryReadBoundedBodyAsync (internal) to the unit tests
+             covering the signature-invalid-never-persists-real-body / oversized-body behavior. -->
+        <InternalsVisibleTo Include="WaIngest.Tests" />
+    </ItemGroup>
+
 </Project>

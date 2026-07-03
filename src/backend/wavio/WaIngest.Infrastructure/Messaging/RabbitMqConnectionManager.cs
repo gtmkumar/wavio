@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
@@ -14,16 +15,37 @@ namespace WaIngest.Infrastructure.Messaging;
 /// </summary>
 public sealed partial class RabbitMqConnectionManager : IAsyncDisposable
 {
+    private const string DevelopmentOnlyFallback = "amqp://guest:guest@localhost:5672";
+
     private readonly string _connectionString;
     private readonly ILogger<RabbitMqConnectionManager> _logger;
     private readonly SemaphoreSlim _connectLock = new(1, 1);
 
     private IConnection? _connection;
 
-    public RabbitMqConnectionManager(IConfiguration configuration, ILogger<RabbitMqConnectionManager> logger)
+    /// <summary>
+    /// Fails closed outside Development when unconfigured — mirrors the Meta:Webhook /
+    /// Pii:EncryptionKey startup posture (never silently talk to a would-be-default local
+    /// broker in production). WaIngest.WebApi's Program.cs already performs the same check
+    /// eagerly at boot; this is the second, independent layer for any other composition root
+    /// that constructs this class without that guard.
+    /// </summary>
+    public RabbitMqConnectionManager(
+        IConfiguration configuration, IHostEnvironment environment, ILogger<RabbitMqConnectionManager> logger)
     {
-        _connectionString = configuration.GetConnectionString("RabbitMq")
-            ?? "amqp://guest:guest@localhost:5672";
+        var configured = configuration.GetConnectionString("RabbitMq");
+
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            if (!environment.IsDevelopment())
+                throw new InvalidOperationException(
+                    "ConnectionStrings:RabbitMq is required outside Development. Provide it via " +
+                    "ConnectionStrings__RabbitMq env var or a secrets provider. Wavio will NOT start without it.");
+
+            configured = DevelopmentOnlyFallback;
+        }
+
+        _connectionString = configured;
         _logger = logger;
     }
 

@@ -28,6 +28,7 @@
     <ItemGroup>
         <ProjectReference Include="..\..\WaIngest.Application\WaIngest.Application.csproj" />
         <ProjectReference Include="..\..\WaIngest.Infrastructure\WaIngest.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\WaIngest.WebApi\WaIngest.WebApi.csproj" />
         <ProjectReference Include="..\..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
         <ProjectReference Include="..\..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
     </ItemGroup>

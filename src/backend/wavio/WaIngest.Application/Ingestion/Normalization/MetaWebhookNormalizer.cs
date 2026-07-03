@@ -210,7 +210,7 @@ public static class MetaWebhookNormalizer
             };
 
             results.Add(new NormalizedWebhookEvent(
-                wamid, $"{PaymentStatusV1.Name}:{statusValue}", paymentEvent));
+                wamid, $"{PaymentStatusV1.Name}:{BoundDedupeSuffix(statusValue)}", paymentEvent));
             return;
         }
 
@@ -253,8 +253,18 @@ public static class MetaWebhookNormalizer
 
         // Dedupe per (wamid, status) — the same wamid legitimately progresses through
         // sent -> delivered -> read, each of which must publish, not collide.
-        results.Add(new NormalizedWebhookEvent(wamid, $"{MessageStatusV1.Name}:{statusValue}", statusEvent));
+        results.Add(new NormalizedWebhookEvent(wamid, $"{MessageStatusV1.Name}:{BoundDedupeSuffix(statusValue)}", statusEvent));
     }
+
+    // ingest.webhook_dedupe.event_type is varchar(50); {routing-key}:{suffix} must fit. Meta's own
+    // status vocabulary (sent/delivered/read/failed, or payment statuses like captured/expired) is
+    // always well under this, but an unexpected/malformed value must never make the dedupe INSERT
+    // itself fail — that would happen AFTER a successful publish (see WebhookProcessor's ordering),
+    // which would incorrectly leave the row 'failed' and cause a replay to publish a duplicate.
+    private const int MaxDedupeSuffixLength = 20;
+
+    private static string BoundDedupeSuffix(string value) =>
+        value.Length <= MaxDedupeSuffixLength ? value : value[..MaxDedupeSuffixLength];
 
     private static string MapPaymentStatus(string metaStatus) => metaStatus.ToLowerInvariant() switch
     {
