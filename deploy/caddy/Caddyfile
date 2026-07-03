@@ -1,0 +1,35 @@
+# Wavio production reverse proxy (issue #12).
+#
+# Single public entry point — Caddy terminates TLS (automatic Let's Encrypt via
+# ACME HTTP-01, since Meta webhooks require a valid public HTTPS endpoint) and
+# forwards everything to the YARP gateway container, which does the actual
+# internal routing to core/wa-*-svc (spec §3.2). No other container publishes a
+# host port — ufw only allows 80/443/SSH (docs/BUILD_PLAN.md).
+#
+# {$WAVIO_DOMAIN} / {$WAVIO_ACME_EMAIL} are supplied via the VPS's decrypted prod
+# env file (SOPS/age — see deploy/secrets/README.md), not committed here.
+
+{$WAVIO_DOMAIN} {
+	encode zstd gzip
+
+	# Security headers on top of what wavio.Gateway's own UseSecurityHeaders()
+	# sets — belt and suspenders at the edge.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+
+	# X-Forwarded-Proto/-For/-Host are set automatically by reverse_proxy —
+	# no header_up needed for those.
+	reverse_proxy wavio-gateway:8080 {
+		health_uri /
+		health_interval 10s
+		health_timeout 5s
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

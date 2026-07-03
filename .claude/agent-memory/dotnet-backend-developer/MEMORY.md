@@ -4,5 +4,6 @@
 - [Aspire dcp quirks when probing/killing services](aspire-dcp-quirks.md) — hung curl probes and orphaned processes when stopping the AppHost
 - [Issue #10 .NET wiring: what changed](issue-10-dotnet-wiring.md) — DbMigrator project, EF remaps, RLS GUC rename, full verification steps
 - [Issue #10 design decisions](decisions.md) — why a custom runner not DbUp, the Npgsql regclass cast bug, remap rationale
-- [Current status across #9/#10](status.md) — quick pointer to what's done and what's next
+- [Current status across #9/#10/#12](status.md) — quick pointer to what's done and what's next
 - [Handoff after #10](handoff.md) — what issue #11 (CI) and #12 (VPS deploy) need to pick up
+- [Issue #12 VPS deploy: what was built](issue-12-vps-deploy.md) — Dockerfile, prod compose, Caddy, SOPS/age, backups, real bugs found, and the shared-working-directory near-incident

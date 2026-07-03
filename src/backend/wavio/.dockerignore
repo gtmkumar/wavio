@@ -1,0 +1,11 @@
+# Docker build context excludes (src/backend/wavio is the build context for
+# the shared Dockerfile — see docker-compose.prod.yml). Keeps local build
+# artifacts out of the image and out of the upload to the Docker daemon.
+**/bin/
+**/obj/
+**/.vs/
+**/keys/
+**/*.user
+**/appsettings.Development.json
+.editorconfig
+*.slnx.DotSettings.user

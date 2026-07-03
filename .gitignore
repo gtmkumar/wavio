@@ -436,3 +436,16 @@ FodyWeavers.xsd
 # Local secrets / dev keys
 **/keys/*.b64
 .claude/settings.local.json
+
+# Wavio prod secrets (issue #12) — *.env is already ignored above (also covers
+# deploy/secrets/prod.env and the runtime /secrets/.env); plaintext private
+# keys must never be committed either. The corresponding *.enc (SOPS/age
+# -encrypted) files under deploy/secrets/ ARE meant to be committed — see
+# deploy/secrets/README.md.
+deploy/secrets/*.pem
+!deploy/secrets/*.pem.enc
+
+# Runtime-only decrypted secrets directory (docker-compose.prod.yml's
+# ./secrets/jwt-private-key.pem bind mount) — never committed, distinct from
+# the tooling + encrypted files that live in deploy/secrets/.
+/secrets/
