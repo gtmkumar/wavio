@@ -65,6 +65,16 @@ done
 | `identity_access` | V005 | core identity | users, user_profiles, roles, permissions, role_permissions, user_permission_override, user_scope_memberships, refresh_tokens, password_resets, otp_codes, login_history, audit_logs |
 | `kernel` | V006 | core identity | outbox_events, outbox_consumed_events, system_settings, file_attachments (**no feature_flags — see `system`**) |
 | `app` | V001 | platform | RLS helper functions + partition maintenance (no tables) |
+| `messaging` | V007 | platform (wa-gateway / wa-ingest) | outbound_messages, outbound_outbox, inbound_messages, message_statuses, media_assets, suppression_list |
+| `sessions` | V008 | platform (session window manager) | conversation_windows, window_events |
+| `templates` | V009 | platform (wa-admin) | templates, template_versions, template_status_events, template_category_changes, template_lint_results, template_packs |
+
+Cross-schema dependency note (Wave 2): `billing.message_costs` (V010+) carries
+the **unique `wamid`** constraint (spec §6) and is the billing source of truth;
+`messaging.message_statuses` only captures the raw `pricing`/`conversation`
+webhook objects. `wamid` is the correlation key across
+`messaging.outbound_messages` → `messaging.message_statuses` →
+`billing.message_costs`.
 
 `identity_access` and `kernel` DDL is derived 1:1 from the EF Core
 configurations in `src/backend/wavio/wavio.SharedDataModel/Persistence/`
@@ -112,6 +122,7 @@ connection.
 | `ingest.raw_webhooks`, `ingest.webhook_dedupe` | Written before tenant resolution (Meta posts to one platform endpoint); `tenant_id` is backfilled later. |
 | `system.jobs`, `system.job_runs` | Platform worker infrastructure; workers run without a tenant context and could never see their queue under RLS. |
 | `kernel.outbox_events`, `kernel.outbox_consumed_events` | Outbox dispatcher/consumers are background workers without tenant context. |
+| `messaging.outbound_outbox` | Same rationale: the gateway dispatcher drains all tenants' queues in one scan (token-bucket per phone number). The message rows themselves (`outbound_messages`) ARE RLS-scoped — webhook-driven writers set the tenant GUC per event. |
 | `identity_access` tables without `tenant_id` (users, permissions, tokens, …) | Users are platform-global; tenancy attaches via `user_scope_memberships(scope_type='tenant', scope_id)`. Access control is app-layer deny-wins RBAC (spec §5). |
 | `public.schema_migrations` | Infrastructure. |
 
@@ -152,6 +163,13 @@ allowlist (all deliberate, all commented at the column/table definition):
   convention: they may predate `identity_access.users` (V001–V004 run before
   V005) and must survive user hard-deletion (DPDP erasure).
 
+V007–V009 (messaging/sessions/templates) introduce **no new exclusions**:
+every uuid `*_id` column added by Wave 1 has a FK. Two are deferred to V009
+(`outbound_messages.template_id` / `.template_version_id` — the templates
+schema doesn't exist yet at V007), same pattern as the V004→V005
+`audit_log.actor_user_id` FK. `wamid`, `wa_id`, `meta_media_id` etc. are
+varchar external identifiers, exempt by the uuid-only rule.
+
 ## Retention / partitioning
 
 - `ingest.raw_webhooks`: RANGE-partitioned by `received_at`, **weekly**
@@ -175,6 +193,13 @@ allowlist (all deliberate, all commented at the column/table definition):
   partitions ahead.
 - `ingest.webhook_dedupe`: cleanup job deletes rows older than 30 days by
   `first_seen_at` (small table; plain DELETE is fine).
+- `messaging.outbound_messages` 24h idempotency window: a partial unique index
+  cannot reference `now()`, so uniqueness is
+  `UNIQUE (tenant_id, idempotency_key) WHERE idempotency_active` plus a
+  `system.jobs` task that clears `idempotency_active` on rows with
+  `accepted_at < now() - interval '24 hours'`. Within the window a duplicate
+  key raises a unique violation and the gateway returns the original result
+  (issue #14).
 
 ## Security & PII
 
@@ -194,4 +219,6 @@ allowlist (all deliberate, all commented at the column/table definition):
 failure; used locally and in CI): tenant A cannot see or write tenant B's rows
 and vice versa (both GUC spellings), unset context sees nothing, global rows
 are visible to all tenants, audit log is append-only, `app_user` is neither
-superuser nor BYPASSRLS nor a `platform_admin` member.
+superuser nor BYPASSRLS nor a `platform_admin` member. Wave 1 coverage:
+`messaging.suppression_list`, `sessions.conversation_windows`,
+`templates.templates` isolation plus `templates.template_packs` global rows.
