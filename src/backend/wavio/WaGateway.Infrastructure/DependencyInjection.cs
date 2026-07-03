@@ -38,6 +38,29 @@ public static class DependencyInjection
 
         services.Configure<MetaGraphOptions>(configuration.GetSection(MetaGraphOptions.SectionName));
 
+        // Startup sanity check (security review, PR #45, S1): the Graph client's Timeout MUST be
+        // strictly less than the stale-lock reclaim window, or a slow Graph response can still be
+        // in flight when its lease is reclaimed and re-sent — see MetaGraphOptions.TimeoutSeconds'
+        // doc comment and OutboxDispatcherService's fenced-write comments for the full mechanism.
+        // Runs eagerly here (not lazily inside the HttpClient configuration callback, which only
+        // runs on first use) so a misconfiguration fails at boot, not on the first slow send.
+        var staleLockSeconds = configuration.GetValue("Outbox:StaleLockSeconds", 30);
+        var configuredTimeoutSeconds = configuration.GetValue("Meta:Graph:TimeoutSeconds", 0);
+        var graphTimeoutSeconds = configuredTimeoutSeconds > 0
+            ? configuredTimeoutSeconds
+            : Math.Max(5, staleLockSeconds - 5); // default: 5s of headroom below the reclaim window
+
+        if (graphTimeoutSeconds >= staleLockSeconds)
+        {
+            throw new InvalidOperationException(
+                $"Meta:Graph:TimeoutSeconds ({graphTimeoutSeconds}s) must be strictly less than " +
+                $"Outbox:StaleLockSeconds ({staleLockSeconds}s) — otherwise a slow Graph response can " +
+                "still be in flight when its outbox lease is reclaimed as stale, and a duplicate send " +
+                "results if both the original and the reclaimed attempt succeed (security review, PR #45, " +
+                "S1). Configure Meta:Graph:TimeoutSeconds explicitly with headroom, or raise " +
+                "Outbox:StaleLockSeconds.");
+        }
+
         var graphClientBuilder = services.AddHttpClient<IMetaGraphMessageClient, MetaGraphMessageClient>((provider, client) =>
         {
             var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<MetaGraphOptions>>().Value;
@@ -45,6 +68,7 @@ public static class DependencyInjection
             {
                 client.BaseAddress = new Uri(options.BaseUrl);
             }
+            client.Timeout = TimeSpan.FromSeconds(graphTimeoutSeconds);
         });
 
         // Aspire's AddServiceDefaults() applies a standard Polly resilience handler (its own

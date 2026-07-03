@@ -32,6 +32,25 @@ namespace WaGateway.Infrastructure.BackgroundWork;
 /// minimized by (a) durably recording the attempt BEFORE calling Graph, so attempts are counted
 /// correctly across a crash, and (b) writing the Graph result to the DB immediately after the
 /// HTTP call returns, with no other work in between.
+///
+/// DUPLICATE-SEND HAZARD, found live (security review, PR #45, S1) — a live-in-flight slow Graph
+/// response (not a crash) could ALSO trigger the reclaim: the reclaim condition only looks at
+/// <c>locked_at</c> age, so a call slower than <c>Outbox:StaleLockSeconds</c> gets its lease
+/// stolen while still running, the reclaimer re-sends, and — since every completion write used to
+/// be an unconditional tracked-entity <c>SaveChangesAsync</c> — whichever call finished last would
+/// silently overwrite the other's result. Fixed two ways, together:
+///   1. <see cref="Graph.MetaGraphMessageClient"/>'s HttpClient now has an explicit
+///      <c>Timeout</c> strictly less than <c>Outbox:StaleLockSeconds</c> (enforced by a startup
+///      sanity check in <c>DependencyInjection.cs</c>), so a slow call fails fast — classified
+///      transient, retried through the normal backoff path — well before the reclaim window
+///      could ever open while it's still running. This closes the exposure at the source.
+///   2. Every write below that transitions the entry's status is fenced with a conditional
+///      <c>ExecuteUpdateAsync(... WHERE locked_by = <see cref="_instanceId"/> AND status =
+///      'dispatching')</c>; 0 rows affected means the lease was already lost, and the caller
+///      discards its own result rather than writing anything (including the corresponding
+///      <c>outbound_messages</c> row). This is the second, independent guard for the residual
+///      window between the Graph call returning and the write landing, and for genuine crash
+///      recovery races.
 /// </summary>
 public sealed partial class OutboxDispatcherService : BackgroundService
 {
@@ -168,7 +187,7 @@ public sealed partial class OutboxDispatcherService : BackgroundService
         if (message is null)
         {
             LogOrphanedEntry(_logger, entry.Id);
-            await MarkDeadAsync(db, entry, null, "ORPHANED", "No matching outbound_messages row.", ct);
+            await FencedMarkDeadAsync(db, entry.Id, "ORPHANED", "No matching outbound_messages row.", ct);
             return;
         }
 
@@ -176,73 +195,159 @@ public sealed partial class OutboxDispatcherService : BackgroundService
         if (phoneNumber is null)
         {
             LogUnresolvedPhoneNumber(_logger, entry.PhoneNumberId);
-            await MarkDeadAsync(db, entry, message, "UNRESOLVED_PHONE_NUMBER", "No matching waba.phone_numbers row.", ct);
-            // No Meta id to report — that IS the failure. Falls back to the internal GUID's
-            // string form; every other publish call site below uses the real Meta id.
-            await PublishFailureAsync(scope, entry, message, entry.PhoneNumberId.ToString(), "UNRESOLVED_PHONE_NUMBER", "No matching waba.phone_numbers row.", ct);
+            if (await FencedMarkDeadAsync(db, entry.Id, "UNRESOLVED_PHONE_NUMBER", "No matching waba.phone_numbers row.", ct))
+            {
+                await UpdateMessageFailedAsync(db, message.Id, "UNRESOLVED_PHONE_NUMBER", "No matching waba.phone_numbers row.", ct);
+                // No Meta id to report — that IS the failure. Falls back to the internal GUID's
+                // string form; every other publish call site below uses the real Meta id.
+                await PublishFailureAsync(scope, entry, message, entry.PhoneNumberId.ToString(), "UNRESOLVED_PHONE_NUMBER", "No matching waba.phone_numbers row.", ct);
+            }
             return;
         }
 
         if (!_tokenBucket.TryConsume(entry.PhoneNumberId, _graphOptions.DefaultThroughputPerSecond))
         {
             // Throttling is not a failure — release the lease and try again shortly without
-            // spending one of the message's retry attempts.
-            await ReleaseForRetryAsync(db, entry, TimeSpan.FromSeconds(1), ct);
+            // spending one of the message's retry attempts. Fenced like every other write below
+            // (security review, PR #45, S1) even though the pre-Graph-call window makes a lost
+            // race here vanishingly unlikely — uniform defense is cheaper to reason about than
+            // selectively skipping the "safe" cases.
+            await FencedReleaseForRetryAsync(db, entry.Id, TimeSpan.FromSeconds(1), ct);
             return;
         }
 
         if (IsMarketingTemplate(message) &&
             !_tierGate.TryRegister(entry.PhoneNumberId, message.ToWaId, _graphOptions.DefaultMessagingTierPerDay))
         {
-            await MarkDeadAsync(db, entry, message, "TIER_EXHAUSTED", "Messaging-tier headroom exhausted for this phone number.", ct);
+            if (!await FencedMarkDeadAsync(db, entry.Id, "TIER_EXHAUSTED", "Messaging-tier headroom exhausted for this phone number.", ct))
+            {
+                return; // lease already lost — whoever holds it now owns the outcome
+            }
+            await UpdateMessageFailedAsync(db, message.Id, "TIER_EXHAUSTED", "Messaging-tier headroom exhausted for this phone number.", ct);
             await PublishFailureAsync(scope, entry, message, phoneNumber.MetaPhoneNumberId, "TIER_EXHAUSTED", "Messaging-tier headroom exhausted for this phone number.", ct);
             return;
         }
 
         // Durable checkpoint BEFORE calling Graph: attempts (and therefore MaxAttempts) are
         // correct even if the process crashes between this write and the Graph response — see
-        // the class doc comment on the exactly-once limitation.
-        entry.Attempts += 1;
-        entry.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
+        // the class doc comment on the exactly-once limitation. Fenced: if we've somehow already
+        // lost the lease before even calling Graph, don't call it at all.
+        var attemptsRecorded = await db.OutboundOutboxEntries
+            .Where(e => e.Id == entry.Id && e.LockedBy == _instanceId && e.Status == "dispatching")
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(e => e.Attempts, e => e.Attempts + 1)
+                .SetProperty(e => e.UpdatedAt, DateTimeOffset.UtcNow), ct);
+        if (attemptsRecorded == 0)
+        {
+            LogLeaseLost(_logger, entry.Id, "pre-dispatch attempts checkpoint");
+            return;
+        }
+        var attemptNumber = entry.Attempts + 1;
 
+        // Timeout strictly < Outbox:StaleLockSeconds (DependencyInjection.cs's startup sanity
+        // check enforces this) — a slow Graph response fails fast here (classified transient by
+        // MetaGraphMessageClient) well before the lease could go stale and be reclaimed while
+        // still in flight (security review, PR #45, S1).
         var graphResult = await _graphClient.SendAsync(
             new GraphSendRequest(phoneNumber.MetaPhoneNumberId, message.ToWaId, message.MessageType, message.Payload), ct);
 
         if (graphResult.Success)
         {
             var now = DateTimeOffset.UtcNow;
-            message.Status = "dispatched";
-            message.Wamid = graphResult.Wamid;
-            message.DispatchedAt = now;
-            message.UpdatedAt = now;
-            message.Version += 1;
-            entry.Status = "dispatched";
-            entry.UpdatedAt = now;
-            await db.SaveChangesAsync(ct);
+
+            // Fence FIRST, before touching outbound_messages: this atomic, conditional UPDATE is
+            // the actual race gate. If it affects 0 rows, another instance/tick already reclaimed
+            // this entry (and is — or already did — record its own outcome) — discard our result
+            // entirely rather than risk overwriting a fresher write with a stale one.
+            var claimed = await db.OutboundOutboxEntries
+                .Where(e => e.Id == entry.Id && e.LockedBy == _instanceId && e.Status == "dispatching")
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(e => e.Status, "dispatched")
+                    .SetProperty(e => e.UpdatedAt, now), ct);
+
+            if (claimed == 0)
+            {
+                LogLeaseLost(_logger, entry.Id, "post-success completion");
+                return;
+            }
+
+            await db.OutboundMessages
+                .Where(m => m.Id == message.Id)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(m => m.Status, "dispatched")
+                    .SetProperty(m => m.Wamid, graphResult.Wamid)
+                    .SetProperty(m => m.DispatchedAt, now)
+                    .SetProperty(m => m.UpdatedAt, now)
+                    .SetProperty(m => m.Version, m => m.Version + 1), ct);
             return;
         }
 
-        if (graphResult.IsTransientFailure && entry.Attempts < entry.MaxAttempts)
+        if (graphResult.IsTransientFailure && attemptNumber < entry.MaxAttempts)
         {
-            var backoff = ComputeBackoffWithJitter(entry.Attempts);
-            entry.Status = "failed";
-            entry.NextAttemptAt = DateTimeOffset.UtcNow + backoff;
-            entry.LastErrorCode = graphResult.ErrorCode;
-            entry.LastError = graphResult.ErrorMessage;
-            entry.LockedBy = null;
-            entry.LockedAt = null;
-            entry.UpdatedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync(ct);
+            var backoff = ComputeBackoffWithJitter(attemptNumber);
+            await db.OutboundOutboxEntries
+                .Where(e => e.Id == entry.Id && e.LockedBy == _instanceId && e.Status == "dispatching")
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(e => e.Status, "failed")
+                    .SetProperty(e => e.NextAttemptAt, DateTimeOffset.UtcNow + backoff)
+                    .SetProperty(e => e.LastErrorCode, graphResult.ErrorCode)
+                    .SetProperty(e => e.LastError, graphResult.ErrorMessage)
+                    .SetProperty(e => e.LockedBy, (string?)null)
+                    .SetProperty(e => e.LockedAt, (DateTimeOffset?)null)
+                    .SetProperty(e => e.UpdatedAt, DateTimeOffset.UtcNow), ct);
+            // No message-row write on the retry path (status stays "accepted") — nothing to fence
+            // here beyond the entry transition itself; a lost race just means the reclaimer's
+            // own attempt/backoff bookkeeping wins instead, which is equally correct.
             return;
         }
 
         // Either a permanent Graph error, or a transient one that exhausted its retries.
         var errorCode = graphResult.IsTransientFailure ? "RETRIES_EXHAUSTED" : graphResult.ErrorCode ?? "UNKNOWN";
         var errorMessage = graphResult.ErrorMessage ?? "Send failed.";
-        await MarkDeadAsync(db, entry, message, errorCode, errorMessage, ct);
+        if (!await FencedMarkDeadAsync(db, entry.Id, errorCode, errorMessage, ct))
+        {
+            LogLeaseLost(_logger, entry.Id, "post-failure dead-letter");
+            return;
+        }
+        await UpdateMessageFailedAsync(db, message.Id, errorCode, errorMessage, ct);
         await PublishFailureAsync(scope, entry, message, phoneNumber.MetaPhoneNumberId, errorCode, errorMessage, ct);
     }
+
+    /// <summary>Atomically transitions the entry to 'dead' only if this instance still holds the
+    /// lease. Returns false if the lease was already lost — caller must not write anything else.</summary>
+    private async Task<bool> FencedMarkDeadAsync(
+        IWaGatewayDbContext db, Guid entryId, string errorCode, string errorMessage, CancellationToken ct)
+    {
+        var rowsAffected = await db.OutboundOutboxEntries
+            .Where(e => e.Id == entryId && e.LockedBy == _instanceId && e.Status == "dispatching")
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(e => e.Status, "dead")
+                .SetProperty(e => e.LastErrorCode, errorCode)
+                .SetProperty(e => e.LastError, errorMessage)
+                .SetProperty(e => e.UpdatedAt, DateTimeOffset.UtcNow), ct);
+        return rowsAffected > 0;
+    }
+
+    private static Task<int> UpdateMessageFailedAsync(
+        IWaGatewayDbContext db, Guid messageId, string errorCode, string errorMessage, CancellationToken ct) =>
+        db.OutboundMessages
+            .Where(m => m.Id == messageId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(m => m.Status, "failed")
+                .SetProperty(m => m.ErrorCode, errorCode)
+                .SetProperty(m => m.ErrorMessage, errorMessage)
+                .SetProperty(m => m.UpdatedAt, DateTimeOffset.UtcNow)
+                .SetProperty(m => m.Version, m => m.Version + 1), ct);
+
+    private Task<int> FencedReleaseForRetryAsync(IWaGatewayDbContext db, Guid entryId, TimeSpan delay, CancellationToken ct) =>
+        db.OutboundOutboxEntries
+            .Where(e => e.Id == entryId && e.LockedBy == _instanceId && e.Status == "dispatching")
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(e => e.Status, "pending")
+                .SetProperty(e => e.NextAttemptAt, DateTimeOffset.UtcNow + delay)
+                .SetProperty(e => e.LockedBy, (string?)null)
+                .SetProperty(e => e.LockedAt, (DateTimeOffset?)null)
+                .SetProperty(e => e.UpdatedAt, DateTimeOffset.UtcNow), ct);
 
     private static bool IsMarketingTemplate(OutboundMessage message)
     {
@@ -256,43 +361,6 @@ public sealed partial class OutboxDispatcherService : BackgroundService
         {
             return false;
         }
-    }
-
-    private static async Task ReleaseForRetryAsync(
-        IWaGatewayDbContext db, wavio.SharedDataModel.Entities.Messaging.OutboundOutboxEntry entry, TimeSpan delay, CancellationToken ct)
-    {
-        entry.Status = "pending";
-        entry.NextAttemptAt = DateTimeOffset.UtcNow + delay;
-        entry.LockedBy = null;
-        entry.LockedAt = null;
-        entry.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
-    }
-
-    private static async Task MarkDeadAsync(
-        IWaGatewayDbContext db,
-        wavio.SharedDataModel.Entities.Messaging.OutboundOutboxEntry entry,
-        OutboundMessage? message,
-        string errorCode,
-        string errorMessage,
-        CancellationToken ct)
-    {
-        var now = DateTimeOffset.UtcNow;
-        entry.Status = "dead";
-        entry.LastErrorCode = errorCode;
-        entry.LastError = errorMessage;
-        entry.UpdatedAt = now;
-
-        if (message is not null)
-        {
-            message.Status = "failed";
-            message.ErrorCode = errorCode;
-            message.ErrorMessage = errorMessage;
-            message.UpdatedAt = now;
-            message.Version += 1;
-        }
-
-        await db.SaveChangesAsync(ct);
     }
 
     /// <param name="metaPhoneNumberId">Meta's raw phone_number_id string — matching every other
@@ -340,4 +408,7 @@ public sealed partial class OutboxDispatcherService : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Could not resolve Meta phone_number_id for internal id {PhoneNumberId} — dead-lettering")]
     private static partial void LogUnresolvedPhoneNumber(ILogger logger, Guid phoneNumberId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Lost the lease on outbox entry {OutboxEntryId} during {Stage} — another instance/tick already reclaimed it; discarding this result")]
+    private static partial void LogLeaseLost(ILogger logger, Guid outboxEntryId, string stage);
 }

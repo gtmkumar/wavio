@@ -34,4 +34,17 @@ public sealed class MetaGraphOptions
     /// with onboarding); 0 or negative means unlimited.
     /// </summary>
     public int DefaultMessagingTierPerDay { get; set; } = 250;
+
+    /// <summary>
+    /// Explicit HttpClient timeout for Graph requests (security review, PR #45, S1). MUST be
+    /// strictly less than <c>Outbox:StaleLockSeconds</c> — enforced by a startup sanity check in
+    /// DependencyInjection.cs — so a slow Graph response fails fast (classified transient,
+    /// retried through the normal backoff path) rather than outliving the stale-lock reclaim
+    /// window: without this, a call slower than the reclaim window gets its lease stolen WHILE
+    /// STILL IN FLIGHT, the reclaimer re-sends, and if both eventually succeed the customer gets
+    /// a duplicate message. 0 (default) means "not explicitly configured" —
+    /// DependencyInjection.cs computes a safe default with headroom below
+    /// <c>Outbox:StaleLockSeconds</c> instead of using this raw value.
+    /// </summary>
+    public int TimeoutSeconds { get; set; }
 }

@@ -18,6 +18,10 @@
 //       to == "131026notfound" -> 400 { error: { code: 131026 } } (permanent — not on WhatsApp)
 //       to == "131047reengage" -> 400 { error: { code: 131047 } } (permanent — re-engagement required)
 //       to == "131049limit"    -> 400 { error: { code: 131049 } } (permanent — per-user marketing limit)
+//       to == "slow45s"        -> waits 45s, then 200 (security review, PR #45, S1: a live-alive
+//                                 but slow response, for reproducing/verifying the duplicate-send
+//                                 hazard fixed by the Graph client's explicit Timeout — see
+//                                 WaGateway.Infrastructure/BackgroundWork/OutboxDispatcherService.cs)
 //       anything else          -> 200 { messages: [{ id: "<deterministic-fake-wamid>" }] }
 //
 // Run: dotnet run --project src/backend/wavio/tools/MetaGraphSendApiStub
@@ -55,6 +59,9 @@ app.MapPost("/{version}/{phoneNumberId}/messages", async (string version, string
             return ErrorResult(400, 131047, "Re-engagement message required (stub).");
         case "131049limit":
             return ErrorResult(400, 131049, "Message limit reached for this user (stub, marketing).");
+        case "slow45s":
+            await Task.Delay(TimeSpan.FromSeconds(45), request.HttpContext.RequestAborted);
+            break;
     }
 
     // Deterministic fake wamid so repeated stub runs are reproducible in manual testing.

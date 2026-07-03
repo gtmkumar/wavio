@@ -15,6 +15,11 @@ namespace WaGateway.Application.Messages.Commands.SendMessage;
 /// transaction (the outbox pattern, spec §4.2). The actual Graph dispatch happens later, out of
 /// request scope, in <c>OutboxDispatcherService</c> (WaGateway.Infrastructure).
 ///
+/// Phone number ownership (security review, PR #45, S3): checked synchronously, before anything
+/// else, so a foreign or nonexistent <c>PhoneNumberId</c> gets an immediate 404 instead of a
+/// silent 202 that only surfaces as an UNRESOLVED_PHONE_NUMBER dead-letter minutes later, deep
+/// in the dispatcher, with no synchronous feedback to the caller.
+///
 /// Idempotency (db/migrations/V007__messaging.sql, database-architect's handoff): checked FIRST
 /// by a plain lookup (the common case — no DB conflict needed), then defended again at insert
 /// time by catching the partial-unique-index violation for the rare concurrent-duplicate race.
@@ -41,6 +46,19 @@ public sealed class SendMessageHandler : ICommandHandler<SendMessageCommand, Sen
         {
             throw new ValidationException(
                 new Dictionary<string, string[]> { ["payload"] = [.. payloadErrors] });
+        }
+
+        // Phone number ownership (security review, PR #45, S3): a foreign/nonexistent
+        // PhoneNumberId used to be accepted here (202) and only ever surfaced as an async
+        // UNRESOLVED_PHONE_NUMBER dead-letter in the dispatcher, minutes later, with no
+        // synchronous feedback to the caller. One cheap, indexed AnyAsync turns that into an
+        // immediate 404. RLS already scopes this query to the caller's own tenant on its own;
+        // the explicit TenantId filter is defense in depth, matching every other query here.
+        var phoneNumberBelongsToTenant = await _db.WabaPhoneNumbers
+            .AnyAsync(p => p.TenantId == command.TenantId && p.Id == command.PhoneNumberId, cancellationToken);
+        if (!phoneNumberBelongsToTenant)
+        {
+            throw new KeyNotFoundException($"Phone number {command.PhoneNumberId} was not found for this tenant.");
         }
 
         var existing = await FindByIdempotencyKeyAsync(command.TenantId, command.IdempotencyKey, cancellationToken);

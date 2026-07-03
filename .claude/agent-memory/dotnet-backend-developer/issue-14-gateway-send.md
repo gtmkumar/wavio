@@ -84,3 +84,64 @@ crash-recovery via stale-lease reclaim proven directly (not by racing a real pro
 turned out to be too fast to reliably catch against the local stub — staged the exact DB state a
 crash leaves behind instead: `status='dispatching'`, a `locked_at` older than the stale-lock
 timeout, and watched the running dispatcher reclaim and complete it).
+
+## Security review round (PR #45), four should-fixes
+
+**S1 (serious — duplicate-send hazard, found by the reviewer, not by me):** the Graph HttpClient
+had no explicit timeout (default ~100s) while the stale-lock reclaim window was 30s, and every
+outbox completion/backoff write was an unconditional `SaveChangesAsync` with no `locked_by`
+fence. A live-alive-but-slow Graph response (not a crash) could have its lease reclaimed WHILE
+STILL RUNNING, and whichever instance's write landed last would silently overwrite the other's —
+with a REAL, second Graph call already having gone out. Fixed two ways together:
+  1. `MetaGraphOptions.TimeoutSeconds` + a startup sanity check in `DependencyInjection.cs` that
+     throws if it isn't strictly less than `Outbox:StaleLockSeconds` (default: computed as
+     `staleLockSeconds - 5`, floor 5). `MetaGraphMessageClient` now classifies a client-side
+     timeout as transient, same as a 5xx.
+  2. Every write in `OutboxDispatcherService` that transitions an entry's status is now a
+     conditional `ExecuteUpdateAsync(... WHERE locked_by = _instanceId AND status =
+     'dispatching')` — 0 rows affected means the lease was already lost, and the caller discards
+     its result rather than writing anything (including the corresponding `outbound_messages`
+     row).
+  Proved BOTH the bug and the fix live, with two real `WaGateway.WebApi` instances sharing one
+  Postgres/RabbitMQ and a stub trigger (`slow45s`, added to `tools/MetaGraphSendApiStub`) that
+  waits 45s before responding: with the fix `git stash`ed out, one instance claimed the entry, a
+  second instance reclaimed it ~31s later (crossing the 30s stale-lock window) WHILE the first
+  call was still in flight, the stub logged TWO independent ~45000ms round trips, and the DB row
+  was silently overwritten a second time. With the fix restored, the client's 25s timeout fired
+  before the 30s window could ever open — confirmed via the exact log line
+  `TaskCanceledException: ... HttpClient.Timeout of 25 seconds elapsing` — each of the 5
+  sequential attempts (only handed off between instances AFTER a clean, legitimate release, never
+  mid-flight) produced exactly one Graph call, and the entry correctly dead-lettered as
+  `RETRIES_EXHAUSTED` with no duplicate writes.
+
+**S2 — eager boot guards:** `WaGateway.WebApi/Program.cs` had the RabbitMq *constructor* guard
+(from the original implementation) but not the eager Program.cs-level check WaIngest/WaIntel both
+have, and had no Meta:Graph config check at all. Without the latter, an unconfigured
+`Meta:Graph:BaseUrl`/`AccessToken` makes every Graph call throw `InvalidOperationException` (an
+invalid/relative URI) — a type `OutboxDispatcherService`'s per-entry handling doesn't classify at
+all, so it propagates to the tick-level catch-all and the entry is left claimed forever: every
+message loops dispatch→reclaim indefinitely and never dead-letters. Extracted both checks into a
+plain static `WaGateway.Infrastructure.BootGuards` class (rather than leaving them as top-level
+Program.cs statements) specifically so the condition logic is independently unit-testable — 6
+tests, plus live-proved by literally running `dotnet run --project WaGateway.WebApi` with
+`ASPNETCORE_ENVIRONMENT=Production` and no config: the process throws and exits immediately,
+never reaching `app.Run()`.
+
+**S3 — synchronous phone number ownership check:** `SendMessageHandler` used to accept (202) a
+send to a `PhoneNumberId` that didn't exist or belonged to another tenant, and it only ever
+surfaced as an async `UNRESOLVED_PHONE_NUMBER` dead-letter in the dispatcher minutes later, with
+no feedback to the caller. Added one cheap, indexed `AnyAsync(p => p.TenantId == ... && p.Id ==
+...)` at the top of the handler (RLS already scopes this implicitly; the explicit tenant filter
+is defense in depth matching every other query in the handler) — throws `KeyNotFoundException`,
+which the existing exception middleware already maps to a clean 404 (same DEF-4c convention used
+elsewhere in the codebase for "unknown lookup key"). Live-verified: a nonexistent phone number id
+now 404s synchronously instead of accepting and dying async.
+
+**S4 — payload size cap:** mirrored wa-admin-svc's (issue #16) `Kestrel.Limits.MaxRequestBodySize
+= 262_144` in `WaGateway.WebApi/Program.cs`. Live-verified: a >256KB body gets a clean 413 before
+any handler code runs.
+
+All four fixes: 139 tests green across WaIntel/WaIngest/WaGateway (68 in WaGateway.Tests, up from
+54), zero new warnings (confirmed via `dotnet build --no-incremental`, grepped specifically for
+WaGateway/stub files — the only warnings present are pre-existing ones in
+`MessagePayloadValidator.cs`, untouched by this round).

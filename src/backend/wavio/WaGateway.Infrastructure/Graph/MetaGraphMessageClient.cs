@@ -66,6 +66,17 @@ public sealed partial class MetaGraphMessageClient : IMetaGraphMessageClient
             LogConnectionFailure(_logger, ex);
             return new GraphSendResult(false, null, IsTransientFailure: true, "CONNECTION_ERROR", ex.Message);
         }
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The CALLER's own token was NOT what fired — this is HttpClient's own Timeout
+            // elapsing (security review, PR #45, S1: the client now has an explicit Timeout
+            // strictly less than Outbox:StaleLockSeconds — see DependencyInjection.cs — so this
+            // path failing fast, classified transient, is what lets the outbox dispatcher's
+            // normal retry/backoff handle a slow Graph response instead of a stale-lease
+            // reclaim racing an still-in-flight call and double-sending).
+            LogTimeout(_logger, ex);
+            return new GraphSendResult(false, null, IsTransientFailure: true, "TIMEOUT", "Graph request timed out.");
+        }
 
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
@@ -114,4 +125,7 @@ public sealed partial class MetaGraphMessageClient : IMetaGraphMessageClient
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Graph send failed: connection error")]
     private static partial void LogConnectionFailure(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Graph send failed: request timed out")]
+    private static partial void LogTimeout(ILogger logger, Exception exception);
 }
