@@ -1,4 +1,3 @@
-using wavio.SharedDataModel.Entities.Example;
 using wavio.SharedDataModel.Entities.IdentityAccess;
 using wavio.SharedDataModel.Entities.Kernel;
 using wavio.SharedDataModel.Entities.TenancyOrg;
@@ -45,9 +44,6 @@ public class WavioDbContext : DbContext
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
     public DbSet<FileAttachment> FileAttachments => Set<FileAttachment>();
-
-    // example (delete this once real domain entities replace it)
-    public DbSet<Widget> Widgets => Set<Widget>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

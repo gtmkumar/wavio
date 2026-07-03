@@ -10,12 +10,18 @@
     <UserSecretsId>wavio-apphost-secrets</UserSecretsId>
   </PropertyGroup>
 
-  <!-- 3 consolidated services + gateway - each becomes an Aspire orchestrated resource -->
+  <!-- Identity + 5 wa-* platform services + gateway — each becomes an Aspire orchestrated resource -->
   <ItemGroup>
     <ProjectReference Include="..\core.WebApi\core.WebApi.csproj" />
-    <ProjectReference Include="..\operations.WebApi\operations.WebApi.csproj" />
-    <ProjectReference Include="..\commerce.WebApi\commerce.WebApi.csproj" />
+    <ProjectReference Include="..\WaGateway.WebApi\WaGateway.WebApi.csproj" />
+    <ProjectReference Include="..\WaIngest.WebApi\WaIngest.WebApi.csproj" />
+    <ProjectReference Include="..\WaAdmin.WebApi\WaAdmin.WebApi.csproj" />
+    <ProjectReference Include="..\WaBilling.WebApi\WaBilling.WebApi.csproj" />
+    <ProjectReference Include="..\WaIntel.WebApi\WaIntel.WebApi.csproj" />
     <ProjectReference Include="..\wavio.Gateway\wavio.Gateway.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MessagePack" Version="3.1.7" />
   </ItemGroup>
 
 </Project>

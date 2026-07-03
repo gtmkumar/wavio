@@ -5,8 +5,11 @@
 // Responsibilities:
 //   - Path-prefix routing via YARP. Path prefixes fan out to each service:
 //       /identity    → core       @5050 (auth/users/roles)
-//       /operations  → operations @5002 (example Widgets vertical — add real routes as you build)
-//       /commerce    → commerce   @5005 (minimal second host)
+//       /messaging   → wa-gateway @5101 (outbound send: messages, media, interactive, flows launch)
+//       /ingest      → wa-ingest  @5102 (Meta webhook receiver: verify, dedupe, normalize, publish)
+//       /admin       → wa-admin   @5103 (WABA/phone onboarding, template lifecycle, rate-card sync)
+//       /billing     → wa-billing @5104 (PMP cost ledger, metering, quotas, invoicing feed)
+//       /intel       → wa-intel   @5105 (Quality Guardian, session windows, analytics, AI gateway)
 //   - Central CORS (single point for all clients)
 //   - Global per-IP rate limiting (fixed-window, 300 req/min)
 //   - Security response headers (mirrors ServiceDefaults.UseSecurityHeaders)
@@ -20,6 +23,7 @@
 using System.Net;
 using System.Threading.RateLimiting;
 using wavio.Gateway;
+using wavio.ServiceDefaults.Logging;
 using Microsoft.AspNetCore.RateLimiting;
 using Yarp.ReverseProxy.Configuration;
 
@@ -73,15 +77,21 @@ ClusterConfig MakeCluster(string clusterId)
 var routes = new[]
 {
     MakeRoute("identity-route",   "identity",   "identity"),
-    MakeRoute("operations-route", "operations", "operations"),
-    MakeRoute("commerce-route",   "commerce",   "commerce"),
+    MakeRoute("messaging-route",  "messaging",  "wa-gateway"),
+    MakeRoute("ingest-route",     "ingest",     "wa-ingest"),
+    MakeRoute("admin-route",      "admin",      "wa-admin"),
+    MakeRoute("billing-route",    "billing",    "wa-billing"),
+    MakeRoute("intel-route",      "intel",      "wa-intel"),
 };
 
 var clusters = new[]
 {
     MakeCluster("identity"),
-    MakeCluster("operations"),
-    MakeCluster("commerce"),
+    MakeCluster("wa-gateway"),
+    MakeCluster("wa-ingest"),
+    MakeCluster("wa-admin"),
+    MakeCluster("wa-billing"),
+    MakeCluster("wa-intel"),
 };
 
 builder.Services
@@ -203,6 +213,9 @@ var app = builder.Build();
 // Must run first so the per-IP rate limiter and security headers see the real client.
 // No-op unless ForwardedHeaders:Enabled = true.
 app.UseForwardedHeadersIfEnabled();
+
+// -- Wamid-chain correlation (spec 3.2): every log line carries CorrelationId/Wamid --
+app.UseWamidCorrelation();
 
 // No-op in Development (mirrors ServiceDefaults.UseSecurityHeaders behaviour).
 app.UseSecurityHeaders();

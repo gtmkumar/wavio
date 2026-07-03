@@ -18,6 +18,7 @@ using core.Application.Identity.Auth.Common;
 using core.Infrastructure;
 using core.Infrastructure.Auth;
 using wavio.SharedDataModel;
+using wavio.ServiceDefaults.Logging;
 using wavio.Utilities.Auth;
 using wavio.Utilities.Auth.Audit;
 using wavio.Utilities.Endpoints;
@@ -198,6 +199,9 @@ if (runSeed)
 // ForwardedHeaders:Enabled = true. MUST run before UseRateLimiter so rate-limit
 // partitioning uses the real client IP.
 app.UseForwardedHeadersIfEnabled();
+
+// -- Wamid-chain correlation (spec 3.2): every log line carries CorrelationId/Wamid --
+app.UseWamidCorrelation();
 
 // ── Rate limiting — after real-IP resolution, before endpoints ────────────────
 app.UseRateLimiter();

@@ -9,6 +9,8 @@ using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Serilog;
+using wavio.ServiceDefaults.Logging;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -22,6 +24,8 @@ public static class Extensions
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
+        builder.ConfigureSerilog();
+
         builder.ConfigureOpenTelemetry();
 
         builder.AddDefaultHealthChecks();
@@ -42,6 +46,31 @@ public static class Extensions
         // {
         //     options.AllowedSchemes = ["https"];
         // });
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Serilog baseline (spec §5): structured console logging with the wa_id-masking
+    /// enricher as a safety net so no service can emit an unmasked wa_id property.
+    ///
+    /// <c>writeToProviders: true</c> keeps the Microsoft.Extensions.Logging providers fed,
+    /// so the OpenTelemetry log exporter configured in <see cref="ConfigureOpenTelemetry"/>
+    /// continues to receive every event alongside the Serilog sinks.
+    ///
+    /// Per-service overrides go in the standard "Serilog" appsettings section
+    /// (ReadFrom.Configuration runs last, so config wins on levels/sinks).
+    /// </summary>
+    public static TBuilder ConfigureSerilog<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        builder.Services.AddSerilog(
+            (_, loggerConfiguration) => loggerConfiguration
+                .Enrich.FromLogContext()
+                .Enrich.With<WaIdMaskingEnricher>()
+                .Enrich.WithProperty("service", builder.Environment.ApplicationName)
+                .WriteTo.Console()
+                .ReadFrom.Configuration(builder.Configuration),
+            writeToProviders: true);
 
         return builder;
     }

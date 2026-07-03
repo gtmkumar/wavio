@@ -3,21 +3,36 @@
   <Project Path="wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
   <Project Path="wavio.Utilities/wavio.Utilities.csproj" />
   <Project Path="wavio.ServiceDefaults/wavio.ServiceDefaults.csproj" />
-  <Folder Name="/wavio-commerce/">
-    <Project Path="commerce.WebApi/commerce.WebApi.csproj" />
-  </Folder>
+  <Project Path="WaPlatform.Contracts/WaPlatform.Contracts.csproj" />
   <Folder Name="/wavio-core/">
     <Project Path="core.WebApi/core.WebApi.csproj" />
     <Project Path="core.Application/core.Application.csproj" />
     <Project Path="core.Infrastructure/core.Infrastructure.csproj" />
   </Folder>
-  <Folder Name="/wavio-operations/">
-    <Project Path="operations.WebApi/operations.WebApi.csproj" />
-    <Project Path="operations.Application/operations.Application.csproj" />
-    <Project Path="operations.Infrastructure/operations.Infrastructure.csproj" />
+  <Folder Name="/wa-gateway-svc/">
+    <Project Path="WaGateway.WebApi/WaGateway.WebApi.csproj" />
+    <Project Path="WaGateway.Application/WaGateway.Application.csproj" />
+    <Project Path="WaGateway.Infrastructure/WaGateway.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/wa-ingest-svc/">
+    <Project Path="WaIngest.WebApi/WaIngest.WebApi.csproj" />
+    <Project Path="WaIngest.Application/WaIngest.Application.csproj" />
+    <Project Path="WaIngest.Infrastructure/WaIngest.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/wa-admin-svc/">
+    <Project Path="WaAdmin.WebApi/WaAdmin.WebApi.csproj" />
+    <Project Path="WaAdmin.Application/WaAdmin.Application.csproj" />
+    <Project Path="WaAdmin.Infrastructure/WaAdmin.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/wa-billing-svc/">
+    <Project Path="WaBilling.WebApi/WaBilling.WebApi.csproj" />
+    <Project Path="WaBilling.Application/WaBilling.Application.csproj" />
+    <Project Path="WaBilling.Infrastructure/WaBilling.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/wa-intel-svc/">
+    <Project Path="WaIntel.WebApi/WaIntel.WebApi.csproj" />
+    <Project Path="WaIntel.Application/WaIntel.Application.csproj" />
+    <Project Path="WaIntel.Infrastructure/WaIntel.Infrastructure.csproj" />
   </Folder>
   <Project Path="wavio.Gateway/wavio.Gateway.csproj" />
-  <Folder Name="/tests/">
-    <Project Path="tests/operations.Tests/operations.Tests.csproj" />
-  </Folder>
 </Solution>

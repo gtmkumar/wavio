@@ -26,17 +26,17 @@ public static class HealthServicesEndpoint
     /// <summary>Named HttpClient registered in Program.cs with a 3-second timeout.</summary>
     public const string HttpClientName = "HealthCheck";
 
-    // Post-consolidation: 3 distinct hosts. The Name is also a YARP cluster id whose
-    // configured address is reused for the probe (see MapHealthServicesEndpoint), so the
-    // fan-out follows any per-environment cluster address override.
-    //   core       (5050) = identity + engagement + mcp
-    //   operations (5002) = catalog + orders + warehouse + logistics  (cluster id "orders")
-    //   commerce   (5005) = commerce + finance + analytics
+    // The Name is also a YARP cluster id whose configured address is reused for the
+    // probe (see MapHealthServicesEndpoint), so the fan-out follows any per-environment
+    // cluster address override.
     private static readonly (string Name, string Path)[] ServiceHealthPaths =
     [
-        ("identity", "http://localhost:5050/health/ready"),
-        ("orders",   "http://localhost:5002/health/ready"),
-        ("commerce", "http://localhost:5005/health/ready"),
+        ("identity",   "http://localhost:5050/health/ready"),
+        ("wa-gateway", "http://localhost:5101/health/ready"),
+        ("wa-ingest",  "http://localhost:5102/health/ready"),
+        ("wa-admin",   "http://localhost:5103/health/ready"),
+        ("wa-billing", "http://localhost:5104/health/ready"),
+        ("wa-intel",   "http://localhost:5105/health/ready"),
     ];
 
     /// <summary>

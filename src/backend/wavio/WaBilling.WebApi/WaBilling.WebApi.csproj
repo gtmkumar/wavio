@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>WaBilling.WebApi</RootNamespace>
+        <AssemblyName>WaBilling.WebApi</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\wavio.ServiceDefaults\wavio.ServiceDefaults.csproj" />
+        <ProjectReference Include="..\wavio.Utilities\wavio.Utilities.csproj" />
+        <ProjectReference Include="..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+        <ProjectReference Include="..\WaBilling.Application\WaBilling.Application.csproj" />
+        <ProjectReference Include="..\WaBilling.Infrastructure\WaBilling.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- OpenAPI document (+ Scalar UI) — Development-only API reference -->
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+        <PackageReference Include="Microsoft.OpenApi" Version="2.9.0" />
+        <PackageReference Include="Scalar.AspNetCore" Version="2.16.3" />
+        <!-- JWT bearer authentication scheme (validate-only via Identity JWKS) -->
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+    </ItemGroup>
+
+</Project>

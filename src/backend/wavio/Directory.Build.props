@@ -1,0 +1,20 @@
+<Project>
+
+  <!-- Solution-wide build settings for wa-platform-core (issue #8).
+       Individual projects keep their own TargetFramework/Nullable blocks;
+       everything here applies on top. -->
+  <PropertyGroup>
+    <!-- .NET analyzers: latest recommended ruleset, code-style enforced from .editorconfig. -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- NuGet audit: fail loudly in CI on vulnerable packages (direct + transitive). -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+
+    <!-- Deterministic builds for CI cacheability + reproducible images. -->
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+</Project>

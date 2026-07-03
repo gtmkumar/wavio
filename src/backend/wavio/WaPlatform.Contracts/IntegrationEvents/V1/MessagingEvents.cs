@@ -1,0 +1,83 @@
+namespace WaPlatform.Contracts.IntegrationEvents.V1;
+
+/// <summary>
+/// <c>wa.message.received.v1</c> — an inbound customer message was ingested, deduped on
+/// <paramref name="Wamid"/>, and normalized by wa-ingest-svc (spec §4.3).
+/// </summary>
+public sealed record MessageReceivedV1 : IntegrationEvent
+{
+    public const string Name = "wa.message.received.v1";
+    public override string EventName => Name;
+
+    /// <summary>WhatsApp message id — also the correlation id for the whole chain (spec §3.2).</summary>
+    public required string Wamid { get; init; }
+
+    /// <summary>Customer WhatsApp id (PII — mask in logs).</summary>
+    public required string WaId { get; init; }
+
+    /// <summary>Meta phone_number_id the message arrived on.</summary>
+    public required string PhoneNumberId { get; init; }
+
+    /// <summary>WABA the phone number belongs to.</summary>
+    public required string WabaId { get; init; }
+
+    /// <summary>Meta message type: text, image, interactive, button, order, …</summary>
+    public required string MessageType { get; init; }
+
+    /// <summary>Meta-reported send timestamp of the customer message.</summary>
+    public required DateTimeOffset SentAt { get; init; }
+
+    /// <summary>True when the message opened/refreshed a customer-service window.</summary>
+    public bool OpensCustomerServiceWindow { get; init; } = true;
+}
+
+/// <summary>
+/// <c>wa.message.status.v1</c> — delivery status of an outbound message changed
+/// (sent → delivered → read, or failed). Carries the webhook <c>pricing</c> object fields,
+/// which are the billing source of truth (ADR-002).
+/// </summary>
+public sealed record MessageStatusV1 : IntegrationEvent
+{
+    public const string Name = "wa.message.status.v1";
+    public override string EventName => Name;
+
+    public required string Wamid { get; init; }
+    public required string PhoneNumberId { get; init; }
+
+    /// <summary>sent | delivered | read | failed | deleted.</summary>
+    public required string Status { get; init; }
+
+    /// <summary>Meta error code when <see cref="Status"/> is failed.</summary>
+    public int? ErrorCode { get; init; }
+
+    /// <summary>Whether Meta marked the message billable (webhook pricing object).</summary>
+    public bool? Billable { get; init; }
+
+    /// <summary>Pricing category: marketing | utility | authentication | service | referral_conversion.</summary>
+    public string? PricingCategory { get; init; }
+
+    /// <summary>Pricing model reported by Meta (PMP going forward).</summary>
+    public string? PricingModel { get; init; }
+}
+
+/// <summary>
+/// <c>wa.window.closing.v1</c> — a customer-service window is approaching expiry
+/// (published by the Session Window Manager, spec §4.5) so verticals can prompt
+/// agents / schedule template follow-ups before free-form sends start being rejected.
+/// </summary>
+public sealed record WindowClosingV1 : IntegrationEvent
+{
+    public const string Name = "wa.window.closing.v1";
+    public override string EventName => Name;
+
+    /// <summary>Customer WhatsApp id (PII — mask in logs).</summary>
+    public required string WaId { get; init; }
+
+    public required string PhoneNumberId { get; init; }
+
+    /// <summary>UTC instant the customer-service window expires.</summary>
+    public required DateTimeOffset ExpiresAt { get; init; }
+
+    /// <summary>Window kind: customer_service (24h) | ctwa (72h free).</summary>
+    public required string WindowType { get; init; }
+}
