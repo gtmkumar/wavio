@@ -48,6 +48,39 @@ builder.Services.AddSharedDataModel(
     builder.Configuration,
     builder.Environment);
 
+// ── Meta Graph API config (issue #16: template submission) ─────────────────────
+// AccessToken is a secret — never logged. Mirrors the shared PII-key / Meta-webhook startup
+// posture: Development falls back to a clearly-labelled non-secret default pointed at the local
+// stub server (tools/MetaGraphApiStub); every other environment fails closed at startup.
+var metaGraphSection = builder.Configuration.GetSection("Meta:Graph");
+var metaGraphBaseUrl = metaGraphSection["BaseUrl"];
+var metaGraphAccessToken = metaGraphSection["AccessToken"];
+
+if (string.IsNullOrWhiteSpace(metaGraphBaseUrl) || string.IsNullOrWhiteSpace(metaGraphAccessToken))
+{
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException(
+            "Meta:Graph:BaseUrl and Meta:Graph:AccessToken are required outside Development. " +
+            "Provide them via Meta__Graph__BaseUrl / Meta__Graph__AccessToken env vars or a secrets provider. " +
+            "Wavio will NOT start without them.");
+
+    metaGraphBaseUrl ??= "http://localhost:5199"; // tools/MetaGraphApiStub default port
+    metaGraphAccessToken ??= "dev-only-not-a-secret-change-me";
+}
+
+builder.Configuration["Meta:Graph:BaseUrl"] = metaGraphBaseUrl;
+builder.Configuration["Meta:Graph:AccessToken"] = metaGraphAccessToken;
+
+// ── RabbitMq config (issue #16: template-events consumer) — fail closed outside Development ────
+// TemplateEventsConsumerBackgroundService's RabbitMqConnectionManager independently refuses the
+// same guest:guest@localhost fallback outside Development — this is the fast, eager, boot-time
+// half of that same guard (mirrors WaIngest.WebApi's identical check).
+var rabbitMqConnStr = builder.Configuration.GetConnectionString("RabbitMq");
+if (string.IsNullOrWhiteSpace(rabbitMqConnStr) && !builder.Environment.IsDevelopment())
+    throw new InvalidOperationException(
+        "ConnectionStrings:RabbitMq is required outside Development. Provide it via " +
+        "ConnectionStrings__RabbitMq env var or a secrets provider. Wavio will NOT start without it.");
+
 // ── wa-admin-svc bounded-context composition ───────────────────────────────────────
 builder.Services
     .AddWaAdminApplication()                          // validators + command/query handlers (no mediator)

@@ -1,5 +1,6 @@
 using System.Reflection;
 using FluentValidation;
+using WaAdmin.Application.Templates;
 using Wavio.Utilities.CQRS.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,6 +19,10 @@ public static class DependencyInjection
 
         services.AddCustomCQRS(assembly);
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
+
+        // Not an ICommandHandler/IQueryHandler, so AddCustomCQRS's assembly scan doesn't pick it
+        // up — shared by CreateTemplateCommandHandler and SubmitTemplateCommandHandler (issue #16).
+        services.AddScoped<ITemplateSubmissionService, TemplateSubmissionService>();
 
         return services;
     }

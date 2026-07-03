@@ -2,6 +2,7 @@ using wavio.SharedDataModel.Entities.IdentityAccess;
 using wavio.SharedDataModel.Entities.Ingest;
 using wavio.SharedDataModel.Entities.Kernel;
 using wavio.SharedDataModel.Entities.TenancyOrg;
+using wavio.SharedDataModel.Entities.Templates;
 using Microsoft.EntityFrameworkCore;
 
 namespace wavio.SharedDataModel.Persistence;
@@ -14,6 +15,7 @@ namespace wavio.SharedDataModel.Persistence;
 ///   tenancy: Tenant
 ///   identity_access: User, Role
 ///   kernel: FileAttachment
+///   templates: Template
 /// All other entities do not have deleted_at and have no global filter.
 /// Use IgnoreQueryFilters() when you need to see soft-deleted rows.
 /// </summary>
@@ -49,6 +51,13 @@ public class WavioDbContext : DbContext
     // ingest (issue #13: wa-ingest-svc webhook receiver)
     public DbSet<RawWebhook> RawWebhooks => Set<RawWebhook>();
     public DbSet<WebhookDedupe> WebhookDedupes => Set<WebhookDedupe>();
+
+    // templates (issue #16: wa-admin-svc template lifecycle)
+    public DbSet<Template> Templates => Set<Template>();
+    public DbSet<TemplateVersion> TemplateVersions => Set<TemplateVersion>();
+    public DbSet<TemplateStatusEvent> TemplateStatusEvents => Set<TemplateStatusEvent>();
+    public DbSet<TemplateCategoryChange> TemplateCategoryChanges => Set<TemplateCategoryChange>();
+    public DbSet<TemplateLintResult> TemplateLintResults => Set<TemplateLintResult>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

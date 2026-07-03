@@ -38,5 +38,9 @@
   <Project Path="wavio.Gateway/wavio.Gateway.csproj" />
   <Folder Name="/tests/">
     <Project Path="tests/WaIngest.Tests/WaIngest.Tests.csproj" />
+    <Project Path="tests/WaAdmin.Tests/WaAdmin.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/MetaGraphApiStub/MetaGraphApiStub.csproj" />
   </Folder>
 </Solution>
