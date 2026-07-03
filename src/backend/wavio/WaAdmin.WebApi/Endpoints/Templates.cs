@@ -39,9 +39,11 @@ public class Templates : IEndpointGroup
         string? status, string? category, Guid? businessAccountId,
         IDispatcher dispatcher, CancellationToken ct, int page = 1, int pageSize = 20)
     {
+        // Raw values passed straight through — GetTemplatesQueryHandler is the single place that
+        // clamps page/pageSize (including the upper bound; security review S2), so there is only
+        // one bound to keep in sync.
         var data = await dispatcher.QueryAsync(
-            new GetTemplatesQuery(page < 1 ? 1 : page, pageSize < 1 ? 20 : pageSize, status, category, businessAccountId),
-            ct);
+            new GetTemplatesQuery(page, pageSize, status, category, businessAccountId), ct);
         return Results.Ok(new PaginatedListResponse<TemplateDto> { Status = true, Data = data });
     }
 

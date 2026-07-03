@@ -35,6 +35,14 @@ var builder = WebApplication.CreateBuilder(args);
 // ── Aspire ServiceDefaults (OTel, health checks, service discovery, resilience) ─
 builder.AddServiceDefaults();
 
+// ── Request body size cap (security review S2, issue #16) ──────────────────────
+// This host's only body-accepting endpoints are POST/PUT /v1/templates (a template's compiled
+// component JSON is at most a few KB) — 256KB is generous headroom, not a real limit for any
+// legitimate request. Kestrel enforces this before any model binding/handler code runs, returning
+// a clean 413 automatically, so an authenticated tenant can't force an oversized single-request
+// parse/allocation as a resource-abuse vector.
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 262_144);
+
 // ── Current user + current tenant (from request principal / JWT claims) ────────
 builder.Services.AddCurrentUser();
 builder.Services.AddAuditTrail(); // RBAC audit trail: interceptor + IAuditWriter

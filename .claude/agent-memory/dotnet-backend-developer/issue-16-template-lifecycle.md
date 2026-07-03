@@ -29,8 +29,8 @@ Branch `feature/16-template-lifecycle` off `feature/13-ingest-webhooks` (stacked
   `Meta:Graph:BaseUrl`); `ScopedCurrentTenant` (serves both HTTP requests and the background
   consumer's per-message DI scope — see gotcha below); `TemplateEventsConsumerBackgroundService`
   (consumes `wa.template.status_changed.v1` / `wa.template.category_changed.v1` from the shared
-  `wavio.events` exchange, dead-letters parked/failed messages to `wavio.events.dlx` →
-  `wa-admin.template-events.dlq`, never requeues).
+  `wavio.events` exchange; see the security-review follow-up section below for the
+  transient-vs-permanent-failure ack logic, which changed after the initial PR).
 - **WaAdmin.WebApi/Endpoints/Templates.cs**: `/v1/templates` CRUD + `/status` + `/submit`, gated
   on new `templates.{list,read,create,update,submit,delete}` permissions (seeded in
   `core.Infrastructure/Seeders/IdentitySeeder.cs`; `templates.delete` is High risk → step-up
@@ -113,6 +113,64 @@ tenant/business-account row for my verification, and cleaned up my own test temp
 afterward (left the permission-catalog additions, which are real feature rows both agents' seeded
 DBs will end up with anyway). See `.claude/agent-memory/dotnet-backend-developer/handoff.md` for
 the general policy this confirms.
+
+## Security-review follow-up (2026-07-04, after PR #44 opened)
+
+Orchestrator relayed a security review with one important finding (S1) and one quick one (S2),
+both fixed on the same branch before the PR entered the merge queue.
+
+**S1 — the consumer's catch-all was turning transient failures into permanent data loss.** The
+original `HandleDeliveryAsync` caught every exception and Nacked without requeue (straight to
+DLQ) — meaning a brief Postgres blip during a real Meta status transition would permanently park
+it, no automatic recovery. Fixed by extracting `TransientRetryPolicy`
+(`WaAdmin.Infrastructure/Messaging/TransientRetryPolicy.cs`) — classifies exceptions and drives a
+bounded (3 attempts, 1s/2s/4s backoff) in-process retry per message, each attempt in its own DI
+scope (fresh `DbContext`, since a connection object may itself be faulted after a transient
+failure — don't reuse it across retries). Outcome is one of `Processed` / `Requeue` (transient,
+retries exhausted — nack WITH requeue, never DLQ) / `DeadLetter` (permanent: malformed payload, OR
+the command handler's deterministic `false` "parked" return — unresolvable tenant/unknown
+template/invalid transition; retrying either would never help).
+
+**A second real bug found live while verifying the fix**: my first classifier (`ex is DbException
+or TimeoutException or SocketException or IOException`) missed the ACTUAL exception a real
+Postgres outage produces — `Microsoft.EntityFrameworkCore.Storage.RetryLimitExceededException`.
+Turns out `AddSharedDataModel`'s Npgsql provider is configured with EF's own
+`NpgsqlRetryingExecutionStrategy` (`EnableRetryOnFailure`) — it already retries 3 times internally
+before giving up and wrapping the real Npgsql/socket exception in this wrapper type, which is
+**not itself a `DbException`**. A same-type-only check on the outer exception dead-lettered a
+perfectly recoverable outage on the first live test. Fixed by making `IsTransient` walk the full
+`InnerException` chain instead of checking only the top-level type — this is the general, robust
+fix (any future wrapper type with a transient cause underneath gets caught too), not a special
+case for this one EF type.
+
+**Live-verified the actual recovery cycle** (no shared-container risk — pointed a standalone
+`WaAdmin.WebApi` at a deliberately wrong Postgres port instead of touching the shared
+`wavio-postgres` container, so this never risked disrupting the other concurrent agent's work):
+published a synthetic `wa.template.status_changed.v1` while "Postgres" was unreachable → logs
+showed attempt 1/3, 2/3, 3/3 with growing delays → `Requeueing message ... after exhausting
+in-process retries` → confirmed via the RabbitMQ management API that the DLQ count did NOT
+increase and the message reappeared on the live `wa-admin.template-events` queue → pointed the
+same process back at the real DB → the requeued message was redelivered and processed on the
+very next attempt (this particular test template didn't exist, so it correctly parked as "unknown
+template" this time — a real DeadLetter, not a transient one — proving the classifier
+distinguishes the two cases correctly on the SAME message across a state change).
+`tests/WaAdmin.Tests/Messaging/TransientRetryPolicyTests.cs` covers this deterministically
+(fake operations, no real delay/broker/DB) — including a regression test for the
+`RetryLimitExceededException`-shaped wrapper bug specifically.
+
+Also added `WaAdmin.Infrastructure/Messaging/README.md` — the requested short DLQ-redrive runbook
+(what lands there vs. what doesn't, how to inspect/re-inject via the RabbitMQ management API).
+
+**S2 — resource-abuse hardening.** `GetTemplatesQueryHandler` now clamps `pageSize` to
+`Math.Clamp(1, 200)` (was only floored at 1, never capped) — note `PaginatedList<T>.PageSize` is a
+*private* property, so `GetTemplatesQueryHandlerTests` asserts on the observable page shape
+(`List.Count`, `PageCount`) instead of the property directly. `WaAdmin.WebApi/Program.cs` now sets
+`KestrelServerOptions.Limits.MaxRequestBodySize = 262_144` (256KB) — this host's only
+body-accepting endpoints are template create/update, whose compiled component JSON is a few KB at
+most; verified live that an oversized POST gets a clean 413 from Kestrel itself, before any
+model binding or handler code runs (confirmed a request with NO auth header instead returns 401,
+since the framework never reaches body-reading for an unauthenticated request — the 413 test
+needs a valid, authorized token to actually exercise the size check).
 
 ## Left for later issues (by design, not oversight)
 - #6/#14: real per-WABA Meta system-user token storage (envelope-encrypted); `MetaGraphOptions
