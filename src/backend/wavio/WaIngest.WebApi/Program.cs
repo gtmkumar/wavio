@@ -28,6 +28,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.IdentityModel.Tokens;
 using WaIngest.Application;
+using WaIngest.Application.Common.Options;
 using WaIngest.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -47,6 +48,32 @@ builder.Services.AddSharedDataModel(
     connStr,
     builder.Configuration,
     builder.Environment);
+
+// ── Meta webhook config (issue #13: HMAC verify + subscription verify token) ───────────
+// Both values are secrets — never logged. Mirrors the shared PII-key startup posture
+// (wavio.SharedDataModel/DependencyInjection): Development falls back to a clearly-labelled
+// non-secret default; every other environment fails closed at startup.
+var metaWebhookSection = builder.Configuration.GetSection(MetaWebhookOptions.SectionName);
+var metaAppSecret = metaWebhookSection["AppSecret"];
+var metaVerifyToken = metaWebhookSection["VerifyToken"];
+
+if (string.IsNullOrWhiteSpace(metaAppSecret) || string.IsNullOrWhiteSpace(metaVerifyToken))
+{
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException(
+            "Meta:Webhook:AppSecret and Meta:Webhook:VerifyToken are required outside Development. " +
+            "Provide them via Meta__Webhook__AppSecret / Meta__Webhook__VerifyToken env vars or a secrets provider. " +
+            "Wavio will NOT start without them.");
+
+    metaAppSecret ??= "dev-only-not-a-secret-change-me";
+    metaVerifyToken ??= "dev-only-verify-token-change-me";
+}
+
+builder.Services.Configure<MetaWebhookOptions>(o =>
+{
+    o.AppSecret = metaAppSecret;
+    o.VerifyToken = metaVerifyToken;
+});
 
 // ── wa-ingest-svc bounded-context composition ───────────────────────────────────────
 builder.Services

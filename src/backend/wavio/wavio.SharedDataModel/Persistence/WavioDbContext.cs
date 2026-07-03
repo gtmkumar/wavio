@@ -1,4 +1,5 @@
 using wavio.SharedDataModel.Entities.IdentityAccess;
+using wavio.SharedDataModel.Entities.Ingest;
 using wavio.SharedDataModel.Entities.Kernel;
 using wavio.SharedDataModel.Entities.TenancyOrg;
 using Microsoft.EntityFrameworkCore;
@@ -44,6 +45,10 @@ public class WavioDbContext : DbContext
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
     public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
     public DbSet<FileAttachment> FileAttachments => Set<FileAttachment>();
+
+    // ingest (issue #13: wa-ingest-svc webhook receiver)
+    public DbSet<RawWebhook> RawWebhooks => Set<RawWebhook>();
+    public DbSet<WebhookDedupe> WebhookDedupes => Set<WebhookDedupe>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

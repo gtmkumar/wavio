@@ -10,12 +10,17 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.4" />
         <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.4" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.4" />
+        <!-- WebhookIngestBackgroundService (BackgroundService/IHostedService). -->
+        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.4" />
+        <!-- Bus publisher (issue #13): exchange "wavio.events", routing key = event name. -->
+        <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\WaIngest.Application\WaIngest.Application.csproj" />
         <ProjectReference Include="..\wavio.Utilities\wavio.Utilities.csproj" />
         <ProjectReference Include="..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+        <ProjectReference Include="..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
     </ItemGroup>
 
 </Project>
