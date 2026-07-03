@@ -142,6 +142,62 @@ don't assume the branch you started on is still checked out.
   not just read) — final `ufw status verbose` output matches the intended
   ruleset exactly.
 
+## Round 3 (same day): security-code-reviewer's four cheap fixes
+
+Verdict was APPROVE with four cheap items required before merge (the rest
+went to issue #42, pre-first-deploy hardening — not this PR):
+
+- **S7 (the important one) — AAD.** `AesGcmEnvelopeCipher` had no additional
+  authenticated data, so a ciphertext wasn't bound to the row/tenant it
+  belongs to: two encrypted WABA tokens could be swapped between rows (bad
+  `UPDATE`, or malicious DB access) and each would still decrypt
+  "successfully" into the wrong row's plaintext — every envelope is otherwise
+  self-consistent (its own random data key), so nothing about the ciphertext
+  itself reveals it's misplaced. Added a **required** (non-optional, so
+  callers can't silently forget it) `byte[]? aad` parameter to
+  `Encrypt`/`Decrypt`/`Rewrap`, folded into `AesGcm`'s `associatedData` for
+  both the key-wrap and data layers. New tests: matching AAD round-trips,
+  wrong/missing AAD throws `AuthenticationTagMismatchException`, and one test
+  that plays out the exact swap scenario end-to-end (encrypt two "rows" with
+  their own AAD, swap the ciphertext between them, prove decrypting with the
+  *receiving* row's AAD fails while the *originating* row's AAD still works —
+  i.e. the swap is detected, not just "some AAD mismatch throws"). 19/19 green
+  (14 existing + 5 new).
+- **S4a — dump permissions.** `pg_dump_nightly.sh` now sets `umask 077`
+  before creating `BACKUP_DIR`/the dump file. Verified: a fresh
+  script-created directory is `700`, the dump file `600` — previously both
+  inherited the ambient (typically `022`) umask, so `644`/`755`, i.e.
+  world-readable dumps of the entire database.
+- **S4b — restore-drill guard.** `restore_drill.sh` unconditionally `DROP`s
+  `SCRATCH_DB` (both up front and in the `EXIT` trap) — if `SCRATCH_DB` were
+  ever misconfigured to equal `POSTGRES_DB`, it would destroy the real
+  database. Added a same-value check as the very first thing after resolving
+  the env vars, before any `docker exec` call. Verified both directions:
+  `SCRATCH_DB=waplatform` (matching the real DB name) refuses immediately
+  with a clear message and touches no Docker command at all; the normal path
+  (`SCRATCH_DB` unset, default `waplatform_restore_drill`) still dumps and
+  restores successfully.
+- **S2 — ufw comment was making a false claim.** The script's comment implied
+  `ufw deny 5432/tcp` etc. would block a future accidentally-published Docker
+  port. That's false: Docker inserts its own ACCEPT rules directly into the
+  `DOCKER`/`FORWARD` iptables chains, ahead of ufw's `INPUT`-chain rules, so a
+  published container port stays reachable from the internet regardless of
+  what ufw says — a well-known Docker+ufw interaction, not a ufw bug.
+  Corrected the comment and documented the real mitigations inline: never
+  publish those ports in compose (current, correct state — but ufw can't
+  catch a regression here, so said so explicitly), bind to `127.0.0.1` if a
+  host-only port is ever needed, or add rules to the `DOCKER-USER` chain
+  (the one chain Docker never overwrites) for a firewall-layer guarantee.
+  Re-ran the script in the same privileged-container harness as before to
+  confirm the corrected comment text shows up in the live `ufw status
+  verbose` output, not just in the source file.
+
+All four re-verified for real (not just re-read) after fixing: full
+`dotnet build`/`dotnet test` clean (135 pre-existing warnings unchanged, 19/19
+tests), both backup scripts re-run against the live dev Postgres, ufw script
+re-run in a privileged container. Pushed as a follow-up commit on
+`feature/12-vps-deploy`; CI green on the updated PR.
+
 ## Genuinely user-side (documented, not faked)
 - Real age keypair generation + getting the private half onto the VPS.
 - Real Let's Encrypt cert issuance (needs `WAVIO_DOMAIN` → real public IP).
