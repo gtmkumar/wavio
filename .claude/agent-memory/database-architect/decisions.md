@@ -1,9 +1,39 @@
 ---
 name: decisions-issue-10
-description: Design decisions and EF-derived DDL surprises for the V001-V006 migrations
+description: Design decisions for V001-V009 migrations (RLS patterns, partitioning, EF-derived DDL, Wave 1 messaging/sessions/templates)
 metadata:
   type: project
 ---
+
+# Design decisions — Wave 1, V007–V009 (issue #17, 2026-07-03)
+
+- **24h idempotency window** (messaging.outbound_messages): partial unique
+  `(tenant_id, idempotency_key) WHERE idempotency_active` + a system.jobs task
+  clearing the flag on rows older than 24h. Index predicates can't reference
+  now(), so a pure-index sliding window is impossible — this is the documented
+  mechanism (README "Retention / partitioning").
+- **messaging.outbound_outbox NOT RLS-scoped** (gateway dispatcher drains all
+  tenants in one scan — same rationale as kernel.outbox_events). But
+  outbound_messages / inbound_messages / message_statuses ARE scoped: webhook
+  consumers set the tenant GUC per event (bus events carry tenant_id).
+- **conversation_windows**: one row per (tenant, phone_number, user_wa_id) —
+  UNIQUE constraint is the upsert target (spec: no EXCLUDE needed). CS 24h and
+  CTWA 72h expiries as two nullable columns on the same row; partial indexes
+  per expiry for the closing scan; closing_notified_at resets on extension.
+- **Deferred-FK pattern reused**: outbound_messages.template_id /
+  template_version_id constraints added in V009 (schema order), ON DELETE SET
+  NULL (message history survives template cleanup; sent content stays in
+  payload jsonb). templates ↔ template_versions circular FK: current_version_id
+  added via ALTER after both tables exist.
+- **template_packs** = nullable-tenant RLS pattern (NULL row = platform
+  vertical library). Template status machine CHECK-enforced values
+  (DRAFT/PENDING/APPROVED/REJECTED/PAUSED/DISABLED), transitions app-enforced
+  + logged in template_status_events.
+- **Zero new FK-audit allowlist entries** for V007–V009, by design — also
+  avoids touching db/tests/fk_audit_allowlist.txt, which only exists on
+  feature/11-ci-pipeline (would be an add/add merge conflict).
+- billing.message_costs.wamid uniqueness belongs to Wave 2 billing;
+  message_statuses only captures raw pricing/conversation jsonb.
 
 # Design decisions — issue #10 migrations (2026-07-03)
 

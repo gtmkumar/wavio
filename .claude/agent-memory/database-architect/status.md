@@ -1,9 +1,26 @@
 ---
 name: status
-description: Latest work status of the database-architect agent (issue #10, dated 2026-07-03)
+description: Latest work status of the database-architect agent (issues #10 + #17, dated 2026-07-03)
 metadata:
   type: project
 ---
+
+# Status — 2026-07-03 (issue #17, Wave 1 — later the same day)
+
+Branch `feature/17-wave1-migrations`, stacked on `feature/10-db-migrations`
+(PR base = that branch; do not merge before PR #37):
+`V007__messaging.sql`, `V008__sessions.sql`, `V009__templates.sql` + Wave 1
+assertions in `db/tests/rls_smoke_test.sh` + db/README.md updates (ownership
+map, outbound_outbox no-RLS rationale, idempotency mechanism, billing wamid
+dependency note). Numbering ruling: issue #17's title says "V005–V008" but
+those numbers were taken by identity_access/kernel — files are V007–V009.
+
+Verified on fresh PG16 both via psql AND `dotnet run --project
+src/backend/wavio/wavio.DbMigrator` (applied all 9); extended smoke test
+25/25 passed; fk_audit.sh (fetched from feature/11-ci-pipeline into
+scratchpad — it is NOT on this branch) passed with 84 columns, zero new
+allowlist entries. Wave 1 rationale in [[decisions-issue-10]], service-dev
+notes in [[handoff-issue-10]].
 
 # Status — 2026-07-03 (issue #10)
 
