@@ -1,0 +1,131 @@
+name: CI
+
+# No branch filter on pull_request: this repo currently stacks feature branches on
+# top of each other (see issue #10/#11), so PRs often target a non-main base. This
+# must still trigger — a branch filter here would silently skip those PRs.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  SQLFLUFF_VERSION: "4.2.2"
+  SOLUTION: src/backend/wavio/wavio.slnx
+
+jobs:
+  build-test:
+    name: Build & test (.NET 10)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore "$SOLUTION"
+
+      - name: Build
+        run: dotnet build "$SOLUTION" --configuration Release --no-restore
+
+      # No test projects exist yet (Wave 0) — this must still run green as the hook
+      # for real tests landing in later waves. Do not add filler test projects just
+      # to give this step something to do.
+      - name: Test
+        run: dotnet test "$SOLUTION" --configuration Release --no-build
+
+  sqlfluff:
+    name: sqlfluff lint (db/migrations)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Lint migrations
+        run: uvx sqlfluff==${{ env.SQLFLUFF_VERSION }} lint db/migrations/
+
+  db-migrations:
+    name: Migration validation + RLS smoke test + FK audit
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: waplatform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d waplatform"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install postgresql-client (psql, used by the RLS smoke test + FK audit)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client
+
+      # Applies db/migrations/V001..latest to the fresh service-container DB, in
+      # order, tracked in public.schema_migrations. V001 idempotently creates
+      # app_user/platform_admin (CI has no docker-compose init script).
+      - name: Apply migrations (wavio.DbMigrator)
+        run: |
+          dotnet run --project src/backend/wavio/wavio.DbMigrator -- \
+            --connection-string "Host=localhost;Port=5432;Database=waplatform;Username=postgres;Password=postgres"
+
+      - name: RLS smoke test (db/tests/rls_smoke_test.sh)
+        run: ./db/tests/rls_smoke_test.sh
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGDATABASE: waplatform
+
+      # Runs after migration validation, against the same already-migrated DB —
+      # every uuid *_id column must have a FK unless allowlisted
+      # (db/tests/fk_audit_allowlist.txt, cross-referenced in db/README.md).
+      - name: FK-audit gate (db/tests/fk_audit.sh)
+        run: ./db/tests/fk_audit.sh
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGDATABASE: waplatform
+
+  contracts-placeholder:
+    name: Contract tests (placeholder — Wave 1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build WaPlatform.Contracts
+        run: dotnet build src/backend/wavio/WaPlatform.Contracts/WaPlatform.Contracts.csproj --configuration Release
+
+      # No consumer-driven contract tests exist yet — WaPlatform.Contracts has no
+      # consuming services until Wave 1 lands. This step is a deliberately honest
+      # placeholder (not a fake test pretending coverage) so the CI gate is wired
+      # up now and only needs a body added later, not new plumbing.
+      - name: Contract tests placeholder
+        run: |
+          echo "WaPlatform.Contracts builds clean. No consumer-driven contract"
+          echo "tests yet — real ones land in Wave 1 as wa-*-svc consumers ship."
