@@ -1,0 +1,23 @@
+<Solution>
+  <Project Path="wavio.AppHost/wavio.AppHost.csproj" />
+  <Project Path="wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+  <Project Path="wavio.Utilities/wavio.Utilities.csproj" />
+  <Project Path="wavio.ServiceDefaults/wavio.ServiceDefaults.csproj" />
+  <Folder Name="/wavio-commerce/">
+    <Project Path="commerce.WebApi/commerce.WebApi.csproj" />
+  </Folder>
+  <Folder Name="/wavio-core/">
+    <Project Path="core.WebApi/core.WebApi.csproj" />
+    <Project Path="core.Application/core.Application.csproj" />
+    <Project Path="core.Infrastructure/core.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/wavio-operations/">
+    <Project Path="operations.WebApi/operations.WebApi.csproj" />
+    <Project Path="operations.Application/operations.Application.csproj" />
+    <Project Path="operations.Infrastructure/operations.Infrastructure.csproj" />
+  </Folder>
+  <Project Path="wavio.Gateway/wavio.Gateway.csproj" />
+  <Folder Name="/tests/">
+    <Project Path="tests/operations.Tests/operations.Tests.csproj" />
+  </Folder>
+</Solution>

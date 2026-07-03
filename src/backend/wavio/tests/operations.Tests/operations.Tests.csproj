@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageReference Include="xunit" Version="2.9.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+        <!-- Catalog-import (#20) handler tests upsert against an in-memory catalog model. -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.4" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\operations.Application\operations.Application.csproj" />
+        <!-- OperationsDbContext adapter (IOperationsDbContext over WavioDbContext) for handler tests. -->
+        <ProjectReference Include="..\..\operations.Infrastructure\operations.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+        <ProjectReference Include="..\..\wavio.Utilities\wavio.Utilities.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Real legacy rate-list workbook, copied next to the test binaries for the parser fixtures. -->
+        <None Include="Fixtures\RateListForDrycleaning.xlsx" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+</Project>

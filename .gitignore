@@ -427,3 +427,12 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# OS / IDE
+.DS_Store
+.idea/
+.run/
+
+# Local secrets / dev keys
+**/keys/*.b64
+.claude/settings.local.json

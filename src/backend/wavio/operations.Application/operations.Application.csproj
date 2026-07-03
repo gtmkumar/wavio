@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <!-- NOTE: not IsAotCompatible — AddCustomCQRS + AddValidatorsFromAssembly scan the assembly. -->
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.4" />
+        <!-- Handlers query the operations data surface (IOperationsDbContext) with EF Core LINQ directly. -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
+        <PackageReference Include="FluentValidation" Version="11.11.0" />
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+        <!-- AddCustomCQRS scans + registers handlers via assembly decoration. -->
+        <PackageReference Include="Scrutor" Version="5.0.2" />
+        <!-- Idempotency-key race handlers inspect PostgresException (23505).
+             Pinned to the transitive Npgsql version (via SharedDataModel) to avoid a downgrade. -->
+        <PackageReference Include="Npgsql" Version="10.0.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Exposes internal helpers to the unit tests. -->
+        <InternalsVisibleTo Include="operations.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- CQRS abstractions/dispatcher, ICurrentUser, Result, PaginatedList, response wrappers -->
+        <ProjectReference Include="..\wavio.Utilities\wavio.Utilities.csproj" />
+    </ItemGroup>
+
+</Project>

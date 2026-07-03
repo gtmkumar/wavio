@@ -1,0 +1,21 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.4.2">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>wavio.AppHost</RootNamespace>
+    <AssemblyName>wavio.AppHost</AssemblyName>
+    <UserSecretsId>wavio-apphost-secrets</UserSecretsId>
+  </PropertyGroup>
+
+  <!-- 3 consolidated services + gateway - each becomes an Aspire orchestrated resource -->
+  <ItemGroup>
+    <ProjectReference Include="..\core.WebApi\core.WebApi.csproj" />
+    <ProjectReference Include="..\operations.WebApi\operations.WebApi.csproj" />
+    <ProjectReference Include="..\commerce.WebApi\commerce.WebApi.csproj" />
+    <ProjectReference Include="..\wavio.Gateway\wavio.Gateway.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <!-- NOTE: not IsAotCompatible — AddCustomCQRS + AddValidatorsFromAssembly scan the assembly. -->
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.4" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
+        <!-- Handlers query the core data surface (ICoreDbContext) with EF Core LINQ directly. -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
+        <PackageReference Include="FluentValidation" Version="11.11.0" />
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- CQRS abstractions/dispatcher, ICurrentUser, Result, PaginatedList, response wrappers -->
+        <ProjectReference Include="..\wavio.Utilities\wavio.Utilities.csproj" />
+    </ItemGroup>
+
+</Project>
