@@ -3,6 +3,7 @@
   <Project Path="wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
   <Project Path="wavio.Utilities/wavio.Utilities.csproj" />
   <Project Path="wavio.ServiceDefaults/wavio.ServiceDefaults.csproj" />
+  <Project Path="wavio.DbMigrator/wavio.DbMigrator.csproj" />
   <Project Path="WaPlatform.Contracts/WaPlatform.Contracts.csproj" />
   <Folder Name="/wavio-core/">
     <Project Path="core.WebApi/core.WebApi.csproj" />

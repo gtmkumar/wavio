@@ -1,8 +1,18 @@
 ---
 name: core-identity-seeder-needs-schema
-description: Why core.WebApi still crash-loops after issue #9's infra is up, and why that's expected until issue #10 lands
+description: Why core.WebApi crash-looped between issues #9 and #10, and how it was confirmed resolved
 metadata:
   type: project
+---
+
+**RESOLVED 2026-07-03 (issue #10).** Once `db/migrations/V001-V006` were applied via
+`wavio.DbMigrator`, `core.WebApi` booted clean and `IdentitySeeder` populated real
+rows (15 permissions, 3 roles, 33 role_permissions, 1 tenant, 1 `admin@wavio.local`
+platform_admin user) — verified by querying `tenancy.tenants` /
+`identity_access.users` directly after a full AppHost run. See [[issue-10-dotnet-wiring]]
+for what changed. The history below is kept for context on *why* this was expected,
+not because it's still an open issue.
+
 ---
 
 `core.WebApi/Program.cs` runs `IdentitySeeder` synchronously in Development, before

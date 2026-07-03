@@ -36,7 +36,7 @@ internal static class AuditContext
     /// <summary>
     /// Stamp actor / tenant / request context + timestamps on a row. tenant_id is taken from
     /// <see cref="ICurrentTenant"/> (NOT the mutated entity) so it equals the RLS session var
-    /// (app.current_tenant_id) — the audit INSERT's WITH CHECK then passes by construction whenever
+    /// (app.tenant_id) — the audit INSERT's WITH CHECK then passes by construction whenever
     /// the business write in the same transaction passed. occurred_at is UtcNow so the row always
     /// lands in the always-present current-month partition.
     /// </summary>

@@ -10,7 +10,7 @@ namespace wavio.SharedDataModel.Persistence;
 /// Do NOT run migrations against this context — the DB schema is canonical.
 ///
 /// Soft-delete query filters (HasQueryFilter(e => e.DeletedAt == null)):
-///   tenancy_org: Tenant
+///   tenancy: Tenant
 ///   identity_access: User, Role
 ///   kernel: FileAttachment
 /// All other entities do not have deleted_at and have no global filter.
@@ -21,7 +21,7 @@ public class WavioDbContext : DbContext
     public WavioDbContext(DbContextOptions<WavioDbContext> options)
         : base(options) { }
 
-    // tenancy_org
+    // tenancy
     public DbSet<Tenant> Tenants => Set<Tenant>();
 
     // identity_access

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>wavio.DbMigrator</RootNamespace>
+        <AssemblyName>wavio.DbMigrator</AssemblyName>
+        <InvariantGlobalization>true</InvariantGlobalization>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Raw Npgsql only — the runner applies db/migrations/*.sql as plain text, no EF/ORM
+             needed. Version pinned to match what Npgsql.EntityFrameworkCore.PostgreSQL 10.0.2
+             already resolves elsewhere in the solution (see wavio.SharedDataModel). -->
+        <PackageReference Include="Npgsql" Version="10.0.3" />
+    </ItemGroup>
+
+</Project>

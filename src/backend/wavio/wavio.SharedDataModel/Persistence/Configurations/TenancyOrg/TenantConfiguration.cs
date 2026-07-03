@@ -8,7 +8,7 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 {
     public void Configure(EntityTypeBuilder<Tenant> b)
     {
-        b.ToTable("tenants", "tenancy_org");
+        b.ToTable("tenants", "tenancy");
 
         b.HasKey(e => e.Id);
         b.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();

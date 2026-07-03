@@ -8,7 +8,7 @@ public sealed class FeatureFlagConfiguration : IEntityTypeConfiguration<FeatureF
 {
     public void Configure(EntityTypeBuilder<FeatureFlag> b)
     {
-        b.ToTable("feature_flags", "kernel");
+        b.ToTable("feature_flags", "system");
 
         b.HasKey(e => e.Id);
         b.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();

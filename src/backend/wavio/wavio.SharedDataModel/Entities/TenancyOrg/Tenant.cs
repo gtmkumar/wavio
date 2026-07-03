@@ -4,7 +4,7 @@ using wavio.SharedDataModel.Entities.IdentityAccess;
 namespace wavio.SharedDataModel.Entities.TenancyOrg;
 
 /// <summary>
-/// Example tenant (tenancy_org.tenants) — the row-level-security scoping unit. Rename/extend
+/// Example tenant (tenancy.tenants) — the row-level-security scoping unit. Rename/extend
 /// this to match the new project's actual tenancy model (single-tenant, org-per-customer,
 /// multi-brand, etc.) or delete it and adjust ICurrentTenant/RlsConnectionInterceptor if the
 /// project doesn't need multi-tenancy at all.
