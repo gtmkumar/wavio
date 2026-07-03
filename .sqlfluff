@@ -1,0 +1,30 @@
+[sqlfluff]
+dialect = postgres
+templater = raw
+max_line_length = 100
+# RF04 (keywords as identifiers): column names like status, action, source,
+# timezone, version are mandated by the EF Core model (database-first) and are
+# unreserved in PostgreSQL.
+# PG01 (excessive locks / CREATE INDEX CONCURRENTLY): migrations run on fresh or
+# maintenance-window databases; CONCURRENTLY cannot run inside a transaction and
+# is pointless on empty tables.
+exclude_rules = references.keywords, postgres.excessive_locks
+
+[sqlfluff:indentation]
+tab_space_size = 4
+indent_unit = space
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.identifiers]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.types]
+extended_capitalisation_policy = lower
