@@ -55,3 +55,49 @@ handler instead of relying on that behavior. If a future issue wants to actually
 `IPipelineBehavior<,>` support, the Dispatcher itself needs a real pipeline-composition rewrite
 first — that's a shared-framework change affecting every service, out of scope for a single
 feature to take on unilaterally.
+
+## Security review round (PR #43), two should-fixes
+
+**S1 (regression, RabbitMqConnectionManager fail-open):** `WaIntel.Infrastructure`'s connection
+manager fell back to `amqp://guest:guest@localhost:5672` unconditionally, in every environment —
+the exact fail-open defect already fixed in WaIngest (issue #13 security review, S2). This
+branch was cut from a parent commit BEFORE that fix landed, so the older, unfixed copy got
+carried over. Fixed with the same two-layer guard: an eager check in `WaIntel.WebApi/Program.cs`
+(fails fast at boot, before the host accepts any traffic) plus a constructor guard in
+`RabbitMqConnectionManager` itself (`IHostEnvironment` injected, throws
+`InvalidOperationException` outside Development when `ConnectionStrings:RabbitMq` is unconfigured).
+**Process takeaway (now a standing rule from the orchestrator):** when cutting a branch from a
+pre-fix parent, diff any copied infra boilerplate (connection managers, RabbitMQ/HTTP client
+setup, etc.) against the latest reviewed pattern on sibling branches before trusting it —
+security fixes land on ONE branch at a time and don't retroactively appear on branches already
+cut from an earlier commit.
+
+**S2 (PII, wa_id unmasked in access logs/traces):** `GET /api/v1/windows/{waId}` was the first
+endpoint on the platform to carry a raw customer wa_id in the URL PATH rather than a request
+body or a named property. `WaIdMaskingEnricher` (`wavio.ServiceDefaults/Logging/WaPiiMask.cs`)
+only ever matched log-event properties by NAME (`WaId`, `To`, etc.) — it never touched
+ASP.NET Core's own request-start/request-finished diagnostic logs (whose `Path`/`QueryString`
+properties are free text that CONTAINS a wa_id mixed with route text, not a value that IS one)
+or OTel's `url.path`/`http.target` span tags, which the AspNetCore instrumentation sets directly
+and independently of Serilog. Live-confirmed the leak first (`grep` for the literal wa_id digits
+against the raw log output — real hits, in both the "Request starting" and "Request finished"
+lines), then fixed it at the **shared, cross-service** `wavio.ServiceDefaults` layer rather than
+patching just this one route:
+  - Added `WaPiiMask.MaskDigitRunsInPath` — a regex-based mask for any embedded 10-15-digit run
+    within a larger string (E.164 wa_ids are that length; a route's other numeric ids, like a
+    short count or a GUID segment, mostly aren't — GUID segments that happen to be exactly
+    10-15 digits DO get masked too as a side effect, a deliberately accepted over-masking
+    tradeoff since it's strictly safer than under-masking and costs nothing but a little log
+    readability).
+  - Extended `WaIdMaskingEnricher` to apply that mask to `Path`/`RequestPath`/`QueryString`
+    log-event properties (distinct from its existing exact-value masking for named wa_id
+    properties).
+  - Added an `EnrichWithHttpRequest` callback on the OTel AspNetCore tracing instrumentation
+    (`wavio.ServiceDefaults/Extensions.cs`) that overwrites `url.path`/`http.target` with the
+    same masked form.
+  This protects every CURRENT and FUTURE service/route that ever puts an identifier in a path —
+  not just this one endpoint — matching the "safety net" philosophy the exact-match enricher
+  already established. Verified live: re-ran the same grep against a fresh log capture after the
+  fix — zero hits for the raw wa_id; positive-confirmed the masked form (`••••••••7001`) actually
+  appears in both the "Request starting" and "Request finished" lines, so the absence of raw
+  digits is the fix working, not the log line simply not firing.

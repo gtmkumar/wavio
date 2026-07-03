@@ -28,6 +28,10 @@
         <ProjectReference Include="..\..\WaIntel.Infrastructure\WaIntel.Infrastructure.csproj" />
         <ProjectReference Include="..\..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
         <ProjectReference Include="..\..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+        <!-- WaPiiMask/WaIdMaskingEnricher (issue #15 security review, S2) live in the shared
+             wavio.ServiceDefaults project (used by every service, not WaIntel-specific) — tested
+             from here since that's where this security fix was verified. -->
+        <ProjectReference Include="..\..\wavio.ServiceDefaults\wavio.ServiceDefaults.csproj" />
     </ItemGroup>
 
 </Project>
