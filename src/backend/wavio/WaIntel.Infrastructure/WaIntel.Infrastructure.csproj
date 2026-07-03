@@ -10,12 +10,24 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.4" />
         <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.4" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.4" />
+        <!-- Fast-lookup window cache (issue #15). -->
+        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.4" />
+        <!-- MessageReceivedConsumerService / WindowCacheInvalidationListener / WindowClosingScannerService
+             (BackgroundService/IHostedService). -->
+        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.4" />
+        <!-- Bus consumer+publisher (issue #15): exchange "wavio.events" (same as issue #13's
+             producer), plus WindowCacheInvalidationListener's/WindowClosingScannerService's raw
+             LISTEN/NOTIFY + per-tenant-GUC connections (deliberately not through EF — see those
+             classes' doc comments). -->
+        <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
+        <PackageReference Include="Npgsql" Version="10.0.3" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\WaIntel.Application\WaIntel.Application.csproj" />
         <ProjectReference Include="..\wavio.Utilities\wavio.Utilities.csproj" />
         <ProjectReference Include="..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+        <ProjectReference Include="..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
     </ItemGroup>
 
 </Project>

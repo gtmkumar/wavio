@@ -7,3 +7,5 @@
 - [Current status across #9/#10](status.md) — quick pointer to what's done and what's next
 - [Handoff after #10](handoff.md) — what issue #11 (CI) and #12 (VPS deploy) need to pick up
 - [Issue #13 wa-ingest-svc: what was built](issue-13-ingest.md) — webhook receiver, dedupe/publish ordering, tenant-resolution scope cut, a live-found signature-replay bug; see also [shared-working-directory-hazard.md](shared-working-directory-hazard.md) for the parallel-agent git collision hit mid-task
+- [Issue #15 Session Window Manager: what was built](issue-15-session-windows.md) — wa-intel-svc placement rationale, CTWA data gap, cross-tenant scanner design, CQRS Behaviors/ dead-code finding
+- [RLS + background service GUC gotcha](rls-background-service-guc-gotcha.md) — any hosted background writer against RLS tables needs an explicit GUC override + held-open connection, or it silently fails; applies beyond issue #15
