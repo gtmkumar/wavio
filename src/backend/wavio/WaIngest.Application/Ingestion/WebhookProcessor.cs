@@ -61,6 +61,21 @@ public sealed partial class WebhookProcessor : IWebhookProcessor
         if (raw.ProcessingStatus is "processed" or "skipped")
             return;
 
+        // Defense in depth: a row with an invalid/missing signature must NEVER be normalized or
+        // published, through any entry point — the endpoint already never enqueues these, but a
+        // future/careless caller of ProcessAsync (replay, a fix-up script, ...) must not be able
+        // to "launder" an unsigned/forged delivery into a real bus event just by naming its id.
+        // ReplayWebhooksHandler also filters these out at the query level; this is the second,
+        // independent layer.
+        if (raw.SignatureValid != true)
+        {
+            raw.ProcessingStatus = "skipped";
+            raw.ProcessingError = "refusing to process: signature was not valid at receipt";
+            raw.ProcessedAt = DateTimeOffset.UtcNow;
+            await _db.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
         try
         {
             await ProcessCoreAsync(raw, cancellationToken);

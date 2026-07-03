@@ -135,6 +135,39 @@ public class WebhookProcessorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_SignatureWasInvalid_NeverPublishesEvenIfExplicitlyTargeted()
+    {
+        // Regression test (found live during #13 verification): the replay endpoint's default
+        // time-window scope must never resurrect a signature-invalid delivery into a real bus
+        // event. WebhookProcessor enforces this independently of the caller (defense in depth —
+        // see ReplayWebhooksHandler's SignatureValid == true query filter for the other layer).
+        await using var db = InMemoryWaIngestDbContext.Create(nameof(ProcessAsync_SignatureWasInvalid_NeverPublishesEvenIfExplicitlyTargeted));
+
+        var now = DateTimeOffset.UtcNow;
+        var raw = new RawWebhook
+        {
+            Id = Guid.NewGuid(),
+            ReceivedAt = now,
+            Source = "meta",
+            SignatureValid = false,
+            Payload = StatusPayload,
+            ProcessingStatus = "received",
+            CreatedAt = now
+        };
+        db.RawWebhooks.Add(raw);
+        await db.SaveChangesAsync(CancellationToken.None);
+
+        var bus = new Mock<IEventBusPublisher>();
+        var processor = new WebhookProcessor(db, bus.Object, NullLogger<WebhookProcessor>.Instance);
+
+        await processor.ProcessAsync(raw.Id, raw.ReceivedAt, CancellationToken.None);
+
+        bus.Verify(b => b.PublishAsync(It.IsAny<WaPlatform.Contracts.IntegrationEvents.IntegrationEvent>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Equal("skipped", raw.ProcessingStatus);
+        Assert.Empty(db.WebhookDedupes);
+    }
+
+    [Fact]
     public async Task ProcessAsync_MissingRow_DoesNotThrow()
     {
         await using var db = InMemoryWaIngestDbContext.Create(nameof(ProcessAsync_MissingRow_DoesNotThrow));

@@ -22,7 +22,12 @@ public sealed class ReplayWebhooksHandler : ICommandHandler<ReplayWebhooksComman
     {
         var maxCount = Math.Clamp(command.MaxCount <= 0 ? DefaultMaxCount : command.MaxCount, 1, HardCap);
 
-        var query = _db.RawWebhooks.AsNoTracking().AsQueryable();
+        // SignatureValid == true is non-negotiable, even for an explicit Id: a delivery that
+        // failed signature verification must never be replayable into a real bus event — the
+        // whole point of persisting it was forensics, not "process it later" (WebhookProcessor
+        // enforces this same rule independently as a second layer).
+        var query = _db.RawWebhooks.AsNoTracking()
+            .Where(w => w.SignatureValid == true);
 
         query = command.Id is { } id
             ? query.Where(w => w.Id == id)
