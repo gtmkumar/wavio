@@ -90,6 +90,17 @@ public sealed class IdentitySeeder
         ("memberships.grant",    "memberships", "grant",      "Grant a membership",      RiskLevel.Critical),
         ("memberships.revoke",   "memberships", "revoke",     "Revoke a membership",     RiskLevel.High),
         ("widgets.manage",       "widgets",     "manage",     "Manage widgets (example)",RiskLevel.Normal),
+
+        // wa-admin-svc template lifecycle (issue #16, spec §4.4/§7.1).
+        ("templates.list",       "templates",   "list",       "List templates",          RiskLevel.Low),
+        ("templates.read",       "templates",   "read",       "View template",           RiskLevel.Low),
+        ("templates.create",     "templates",   "create",     "Create/submit template",  RiskLevel.Normal),
+        ("templates.update",     "templates",   "update",     "Edit template",           RiskLevel.Normal),
+        ("templates.submit",     "templates",   "submit",     "(Re)submit template to Meta", RiskLevel.Normal),
+        ("templates.delete",     "templates",   "delete",     "Delete a DRAFT template", RiskLevel.High),
+
+        // wa-gateway-svc outbound send (issue #14).
+        ("messages.send",        "messages",    "send",       "Send an outbound WhatsApp message", RiskLevel.Normal),
     ];
 
     private async Task<Dictionary<string, Permission>> SeedPermissionsAsync(CancellationToken ct)
@@ -204,10 +215,13 @@ public sealed class IdentitySeeder
         Grant("tenant_admin",
             "users.list", "users.read", "users.create", "users.update", "users.deactivate",
             "users.set_password", "roles.list", "roles.manage", "permissions.list",
-            "permissions.assign", "memberships.grant", "memberships.revoke", "widgets.manage");
+            "permissions.assign", "memberships.grant", "memberships.revoke", "widgets.manage",
+            "templates.list", "templates.read", "templates.create", "templates.update",
+            "templates.submit", "templates.delete", "messages.send");
 
-        // staff: read-only + the example feature.
-        Grant("staff", "users.list", "users.read", "roles.list", "permissions.list", "widgets.manage");
+        // staff: read-only + the example feature + day-to-day messaging.
+        Grant("staff", "users.list", "users.read", "roles.list", "permissions.list", "widgets.manage",
+            "templates.list", "templates.read", "messages.send");
 
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Seeded role→permission grants.");

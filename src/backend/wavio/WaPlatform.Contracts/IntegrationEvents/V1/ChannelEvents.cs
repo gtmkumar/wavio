@@ -66,3 +66,24 @@ public sealed record TemplateStatusChangedV1 : IntegrationEvent
     /// <summary>Meta rejection/pause reason when present.</summary>
     public string? Reason { get; init; }
 }
+
+/// <summary>
+/// <c>wa.template.category_changed.v1</c> — Meta recategorized a template (e.g.
+/// utility → marketing), which changes its per-message cost (spec §4.4). Tenant
+/// notification + billing recalibration are mandatory reactions to this event.
+/// </summary>
+public sealed record TemplateCategoryChangedV1 : IntegrationEvent
+{
+    public const string Name = "wa.template.category_changed.v1";
+    public override string EventName => Name;
+
+    /// <summary>Platform template id.</summary>
+    public required Guid TemplateId { get; init; }
+
+    /// <summary>Meta-side template id.</summary>
+    public required string MetaTemplateId { get; init; }
+
+    /// <summary>utility | marketing | authentication.</summary>
+    public required string PreviousCategory { get; init; }
+    public required string NewCategory { get; init; }
+}
