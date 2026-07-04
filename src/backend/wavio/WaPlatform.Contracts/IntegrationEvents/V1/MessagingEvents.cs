@@ -29,6 +29,20 @@ public sealed record MessageReceivedV1 : IntegrationEvent
 
     /// <summary>True when the message opened/refreshed a customer-service window.</summary>
     public bool OpensCustomerServiceWindow { get; init; } = true;
+
+    /// <summary>
+    /// Meta's raw <c>referral</c> object (serialized JSON), present only when this message
+    /// arrived via a Click-to-WhatsApp ad or Facebook Page CTA (spec §2.2, §4.5 — this is what
+    /// opens/extends the 72h CTWA window). Null for an ordinary organic message.
+    ///
+    /// Additive field (contract rule: additive-only within v1) — added by issue #15 (Session
+    /// Window Manager). wa-ingest-svc's normalizer does NOT populate this yet as of issue #13;
+    /// that's a real gap, not an oversight — see
+    /// .claude/agent-memory/dotnet-backend-developer/issue-15-session-windows.md for why it
+    /// wasn't fixed as part of this issue (wa-ingest-svc's PR was actively receiving commits from
+    /// another agent) and what populating it requires.
+    /// </summary>
+    public string? Referral { get; init; }
 }
 
 /// <summary>

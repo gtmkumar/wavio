@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <!-- xUnit's MethodName_Scenario_Expected naming convention is intentional and
+             industry-standard for test readability; CA1707 (no underscores) does not apply
+             to test projects (same suppression as WaIngest.Tests / wavio.Utilities.Tests). -->
+        <NoWarn>$(NoWarn);CA1707</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageReference Include="xunit" Version="2.9.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+        <PackageReference Include="Moq" Version="4.20.72" />
+        <!-- InMemoryWaIntelDbContext: DbSet<T> cannot be hand-faked; EF Core's in-memory
+             provider is the simplest correct stand-in (same reasoning as WaIngest.Tests'
+             InMemoryWaIngestDbContext). -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.4" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\WaIntel.Application\WaIntel.Application.csproj" />
+        <ProjectReference Include="..\..\WaIntel.Infrastructure\WaIntel.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
+        <ProjectReference Include="..\..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+        <!-- WaPiiMask/WaIdMaskingEnricher (issue #15 security review, S2) live in the shared
+             wavio.ServiceDefaults project (used by every service, not WaIntel-specific) — tested
+             from here since that's where this security fix was verified. -->
+        <ProjectReference Include="..\..\wavio.ServiceDefaults\wavio.ServiceDefaults.csproj" />
+    </ItemGroup>
+
+</Project>

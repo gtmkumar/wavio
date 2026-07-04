@@ -1,6 +1,7 @@
 using wavio.SharedDataModel.Entities.IdentityAccess;
 using wavio.SharedDataModel.Entities.Ingest;
 using wavio.SharedDataModel.Entities.Kernel;
+using wavio.SharedDataModel.Entities.Sessions;
 using wavio.SharedDataModel.Entities.TenancyOrg;
 using Microsoft.EntityFrameworkCore;
 
@@ -49,6 +50,10 @@ public class WavioDbContext : DbContext
     // ingest (issue #13: wa-ingest-svc webhook receiver)
     public DbSet<RawWebhook> RawWebhooks => Set<RawWebhook>();
     public DbSet<WebhookDedupe> WebhookDedupes => Set<WebhookDedupe>();
+
+    // sessions (issue #15: Session Window Manager)
+    public DbSet<ConversationWindow> ConversationWindows => Set<ConversationWindow>();
+    public DbSet<WindowEvent> WindowEvents => Set<WindowEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

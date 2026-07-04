@@ -94,11 +94,24 @@ public static class Extensions
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddAspNetCoreInstrumentation(tracing =>
+                    {
                         // Exclude health check requests from tracing
                         tracing.Filter = context =>
                             !context.Request.Path.StartsWithSegments(HealthEndpointPath)
-                            && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath)
-                    )
+                            && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath);
+
+                        // wa_id masking (spec §5, issue #15 security review S2): the
+                        // instrumentation's own url.path/http.target tags carry the raw request
+                        // path (e.g. GET /v1/windows/919876543210's real wa_id) — WaIdMaskingEnricher
+                        // only covers Serilog log-event properties, not OTel span tags, so this is
+                        // a second, independent enrichment covering the trace side of the same gap.
+                        tracing.EnrichWithHttpRequest = (activity, request) =>
+                        {
+                            var maskedPath = WaPiiMask.MaskDigitRunsInPath(request.Path.Value);
+                            activity.SetTag("url.path", maskedPath);
+                            activity.SetTag("http.target", WaPiiMask.MaskDigitRunsInPath(request.Path + request.QueryString));
+                        };
+                    })
                     // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                     //.AddGrpcClientInstrumentation()
                     .AddHttpClientInstrumentation();
