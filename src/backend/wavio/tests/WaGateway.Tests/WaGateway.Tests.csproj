@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <!-- xUnit's MethodName_Scenario_Expected naming convention is intentional and
+             industry-standard for test readability; CA1707 (no underscores) does not apply
+             to test projects (same suppression as WaIngest.Tests / WaIntel.Tests). -->
+        <NoWarn>$(NoWarn);CA1707</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageReference Include="xunit" Version="2.9.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+        <PackageReference Include="Moq" Version="4.20.72" />
+        <!-- InMemoryWaGatewayDbContext: DbSet<T> cannot be hand-faked; EF Core's in-memory
+             provider is the simplest correct stand-in (same reasoning as WaIngest.Tests'
+             InMemoryWaIngestDbContext / WaIntel.Tests' InMemoryWaIntelDbContext). NOTE: it does
+             NOT enforce the idempotency-key unique constraint or RLS — see the "not covered by
+             unit tests" note in the issue #14 decisions memory for what only live verification
+             can prove. -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.4" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\WaGateway.Application\WaGateway.Application.csproj" />
+        <ProjectReference Include="..\..\WaGateway.Infrastructure\WaGateway.Infrastructure.csproj" />
+        <ProjectReference Include="..\..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
+        <ProjectReference Include="..\..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -32,8 +32,23 @@ using WaGateway.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── Request body size cap (security review, PR #45, S4) ────────────────────────
+// This host's only body-accepting endpoint is POST /v1/messages — the largest legitimate
+// payload (an interactive list with several sections/rows) is a few KB. 256KB is generous
+// headroom, not a real limit for any legitimate request. Kestrel enforces this before any model
+// binding/handler code runs, returning a clean 413 automatically, so an authenticated tenant
+// can't force an oversized single-request parse/allocation as a resource-abuse vector. Same cap
+// as wa-admin-svc's (issue #16 security review, S2).
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 262_144);
+
 // ── Aspire ServiceDefaults (OTel, health checks, service discovery, resilience) ─
 builder.AddServiceDefaults();
+
+// ── Fail-closed boot guards (security review, PR #45, S2) — see BootGuards.cs for the full
+// rationale on each (same lesson already applied to WaIngest issue #13 S2 / WaIntel issue #15 S1,
+// applied here at the boot layer too, not just the ctor layer this branch already had). ─────────
+BootGuards.RequireRabbitMqConfiguredOutsideDevelopment(builder.Configuration, builder.Environment);
+BootGuards.RequireMetaGraphConfiguredOutsideDevelopment(builder.Configuration, builder.Environment);
 
 // ── Current user + current tenant (from request principal / JWT claims) ────────
 builder.Services.AddCurrentUser();
@@ -51,7 +66,10 @@ builder.Services.AddSharedDataModel(
 // ── wa-gateway-svc bounded-context composition ───────────────────────────────────────
 builder.Services
     .AddWaGatewayApplication()                          // validators + command/query handlers (no mediator)
-    .AddWaGatewayInfrastructure(builder.Configuration); // data surface + external clients
+    .AddWaGatewayInfrastructure(builder.Configuration)  // data surface + external clients
+    // The outbox dispatcher runs with no HttpContext — ICurrentTenant must support an explicit
+    // tenant override so its RLS-scoped writes work. Must come AFTER AddCurrentTenant() above.
+    .ReplaceCurrentTenantWithScopedVersion();
 
 // ── OpenAPI document (+ Bearer scheme & standard error responses) ──────────────
 builder.Services.AddDefaultOpenApi();
