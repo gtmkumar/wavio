@@ -39,5 +39,9 @@
   <Folder Name="/tests/">
     <Project Path="tests/WaIngest.Tests/WaIngest.Tests.csproj" />
     <Project Path="tests/WaIntel.Tests/WaIntel.Tests.csproj" />
+    <Project Path="tests/WaGateway.Tests/WaGateway.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/MetaGraphSendApiStub/MetaGraphSendApiStub.csproj" />
   </Folder>
 </Solution>
