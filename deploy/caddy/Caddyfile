@@ -1,0 +1,42 @@
+# Wavio production reverse proxy (issue #12).
+#
+# Single public entry point — Caddy terminates TLS (automatic Let's Encrypt via
+# ACME HTTP-01, since Meta webhooks require a valid public HTTPS endpoint) and
+# forwards everything to the YARP gateway container, which does the actual
+# internal routing to core/wa-*-svc (spec §3.2). No other container publishes a
+# host port — ufw only allows 80/443/SSH (docs/BUILD_PLAN.md).
+#
+# {$WAVIO_DOMAIN} / {$WAVIO_ACME_EMAIL} are supplied via the VPS's decrypted prod
+# env file (SOPS/age — see deploy/secrets/README.md), not committed here.
+
+{$WAVIO_DOMAIN} {
+	encode zstd gzip
+
+	# Security headers on top of what wavio.Gateway's own UseSecurityHeaders()
+	# sets — belt and suspenders at the edge.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+
+	# X-Forwarded-Proto/-For/-Host are set automatically by reverse_proxy —
+	# no header_up needed for those.
+	#
+	# Deliberately NO active health_uri/health_interval here: wavio.Gateway (and
+	# everything behind it) legitimately returns 404 for unmatched routes — see
+	# docker-compose.prod.yml's healthcheck comment, "any HTTP response, even
+	# 404, proves the app is alive" (the same reasoning applies here). Caddy's
+	# active health checker requires a 2xx response by default, so a health_uri
+	# against "/" marks the (perfectly healthy) upstream DOWN and Caddy refuses
+	# to proxy anything ("no upstreams available") — caught by an actual local
+	# end-to-end run, not just config validation. Docker Compose's own
+	# healthchecks + depends_on: condition: service_healthy already gate startup
+	# ordering; Caddy doesn't need to re-implement that.
+	reverse_proxy wavio-gateway:8080
+
+	log {
+		output stdout
+		format json
+	}
+}

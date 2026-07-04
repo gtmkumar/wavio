@@ -1,0 +1,19 @@
+# SOPS config (issue #12) — encrypts production secrets with age so they can
+# live in git safely. Only the *.env files under deploy/secrets/ are in scope;
+# everything else (Meta system-user tokens, webhook secrets, Flows keys) stays
+# app-level envelope-encrypted at rest per docs/BUILD_PLAN.md, not SOPS.
+#
+# IMPORTANT — the age recipient below is a throwaway demo key generated while
+# building this tooling (see deploy/secrets/README.md verification notes). Its
+# private half was never committed or kept. Replace it with your own real age
+# recipient before encrypting anything real:
+#   age-keygen -o ~/.config/sops/age/keys.txt   (keep this file OFFLINE and backed up)
+# then swap the key below for the "Public key:" line it prints.
+creation_rules:
+  - path_regex: deploy/secrets/.*\.env$
+    age: age1yuwpassvdgaxvqw9lvp2e3eqs7h9hemharsxayhkwsj3msw4pqds8dzz3s
+  # Jwt:PrivateKey (RS256 signing key, core only) ships as its own PEM file
+  # rather than a line in prod.env — multi-line PEM text doesn't survive
+  # KEY=VALUE .env parsing reliably. Encrypted as an opaque binary blob.
+  - path_regex: deploy/secrets/.*\.pem$
+    age: age1yuwpassvdgaxvqw9lvp2e3eqs7h9hemharsxayhkwsj3msw4pqds8dzz3s

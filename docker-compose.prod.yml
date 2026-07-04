@@ -1,0 +1,264 @@
+# Wavio — production runtime on a single VPS (issue #12).
+#
+# docs/BUILD_PLAN.md "Runtime: Docker Compose on the VPS": 5 wa-* services +
+# core identity + PostgreSQL 16 + RabbitMQ + Caddy as the reverse proxy, all
+# free/OSS, no managed cloud services, no Aspire (that's local-dev only —
+# see docker-compose.dev.yml / issue #9).
+#
+# Only Caddy publishes host ports (80/443) — every other service is reachable
+# solely over the internal compose network. Postgres/RabbitMQ are never public
+# (ufw baseline, deploy/vps/setup-ufw.sh, is defense in depth on top of that).
+#
+# Images: built + pushed to GHCR by .github/workflows/deploy.yml. The VPS only
+# ever pulls (`docker compose pull && docker compose up -d`) — it never builds.
+# `build:` blocks are kept so `docker compose -f docker-compose.prod.yml build`
+# also works for local verification.
+#
+# Usage: see deploy/README.md ("Production") for the full runbook (secrets,
+# first-run migration, ufw, deploy workflow).
+
+name: wavio-prod
+
+x-dotnet-service: &dotnet-service
+  restart: unless-stopped
+  environment: &dotnet-env
+    ASPNETCORE_ENVIRONMENT: Production
+    Pii__EncryptionKey: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set — see deploy/secrets/README.md}
+  healthcheck:
+    # /health and /alive are Development-only by design (wavio.ServiceDefaults —
+    # see its comment referencing https://aka.ms/aspire/healthchecks). Any HTTP
+    # response (even 404) proves Kestrel is up; curl without --fail treats that
+    # as success, only a connection failure is treated as unhealthy.
+    test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://127.0.0.1:8080/"]
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 20s
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set — see deploy/secrets/README.md}
+      POSTGRES_DB: waplatform
+      # Consumed by deploy/postgres/init-prod/001-create-app-role.sh on first
+      # init only — creates app_user with this real password BEFORE V001's
+      # idempotent (and much weaker) dev-default bootstrap ever runs.
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set — see deploy/secrets/README.md}
+    volumes:
+      - wavio-prod-postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init-prod:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d waplatform"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    # No `ports:` — never reachable from outside the compose network.
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?RABBITMQ_DEFAULT_USER must be set — see deploy/secrets/README.md}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?RABBITMQ_DEFAULT_PASS must be set — see deploy/secrets/README.md}
+    volumes:
+      - wavio-prod-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    # No `ports:` — management UI (15672) and AMQP (5672) stay internal-only.
+
+  # One-shot migration runner — NOT part of the always-on service set (profile
+  # "tools" so `docker compose up` never starts it). Run explicitly, once, before
+  # the app services on a fresh deploy or after a schema change:
+  #   docker compose -f docker-compose.prod.yml run --rm migrator
+  migrator:
+    image: ghcr.io/${GHCR_OWNER:-gtmkumar}/wavio-dbmigrator:${IMAGE_TAG:-latest}
+    build:
+      context: ./src/backend/wavio
+      dockerfile: Dockerfile
+      args:
+        PROJECT_PATH: wavio.DbMigrator/wavio.DbMigrator.csproj
+        ASSEMBLY_NAME: wavio.DbMigrator
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # db/migrations isn't in the Docker build context (src/backend/wavio) —
+      # bind-mount it at run time instead of baking it into the image.
+      - ./db/migrations:/db/migrations:ro
+    command:
+      - "--connection-string"
+      - "Host=postgres;Port=5432;Database=waplatform;Username=postgres;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}"
+      - "--migrations-dir"
+      - "/db/migrations"
+
+  core:
+    <<: *dotnet-service
+    image: ghcr.io/${GHCR_OWNER:-gtmkumar}/wavio-core:${IMAGE_TAG:-latest}
+    build:
+      context: ./src/backend/wavio
+      dockerfile: Dockerfile
+      args:
+        PROJECT_PATH: core.WebApi/core.WebApi.csproj
+        ASSEMBLY_NAME: core.WebApi
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
+      Jwt__PrivateKeyPath: ${JWT_PRIVATE_KEY_PATH:-/run/secrets/jwt-private-key.pem}
+    volumes:
+      - ./secrets/jwt-private-key.pem:/run/secrets/jwt-private-key.pem:ro
+
+  wa-gateway-svc:
+    <<: *dotnet-service
+    image: ghcr.io/${GHCR_OWNER:-gtmkumar}/wavio-wagateway-webapi:${IMAGE_TAG:-latest}
+    build:
+      context: ./src/backend/wavio
+      dockerfile: Dockerfile
+      args:
+        PROJECT_PATH: WaGateway.WebApi/WaGateway.WebApi.csproj
+        ASSEMBLY_NAME: WaGateway.WebApi
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      core: { condition: service_healthy }
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      Jwt__Authority: http://core:8080
+
+  wa-ingest-svc:
+    <<: *dotnet-service
+    image: ghcr.io/${GHCR_OWNER:-gtmkumar}/wavio-waingest-webapi:${IMAGE_TAG:-latest}
+    build:
+      context: ./src/backend/wavio
+      dockerfile: Dockerfile
+      args:
+        PROJECT_PATH: WaIngest.WebApi/WaIngest.WebApi.csproj
+        ASSEMBLY_NAME: WaIngest.WebApi
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      core: { condition: service_healthy }
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      Jwt__Authority: http://core:8080
+
+  wa-admin-svc:
+    <<: *dotnet-service
+    image: ghcr.io/${GHCR_OWNER:-gtmkumar}/wavio-waadmin-webapi:${IMAGE_TAG:-latest}
+    build:
+      context: ./src/backend/wavio
+      dockerfile: Dockerfile
+      args:
+        PROJECT_PATH: WaAdmin.WebApi/WaAdmin.WebApi.csproj
+        ASSEMBLY_NAME: WaAdmin.WebApi
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      core: { condition: service_healthy }
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      Jwt__Authority: http://core:8080
+
+  wa-billing-svc:
+    <<: *dotnet-service
+    image: ghcr.io/${GHCR_OWNER:-gtmkumar}/wavio-wabilling-webapi:${IMAGE_TAG:-latest}
+    build:
+      context: ./src/backend/wavio
+      dockerfile: Dockerfile
+      args:
+        PROJECT_PATH: WaBilling.WebApi/WaBilling.WebApi.csproj
+        ASSEMBLY_NAME: WaBilling.WebApi
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      core: { condition: service_healthy }
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      Jwt__Authority: http://core:8080
+
+  wa-intel-svc:
+    <<: *dotnet-service
+    image: ghcr.io/${GHCR_OWNER:-gtmkumar}/wavio-waintel-webapi:${IMAGE_TAG:-latest}
+    build:
+      context: ./src/backend/wavio
+      dockerfile: Dockerfile
+      args:
+        PROJECT_PATH: WaIntel.WebApi/WaIntel.WebApi.csproj
+        ASSEMBLY_NAME: WaIntel.WebApi
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      core: { condition: service_healthy }
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
+      ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      Jwt__Authority: http://core:8080
+
+  wavio-gateway:
+    <<: *dotnet-service
+    image: ghcr.io/${GHCR_OWNER:-gtmkumar}/wavio-wavio-gateway:${IMAGE_TAG:-latest}
+    build:
+      context: ./src/backend/wavio
+      dockerfile: Dockerfile
+      args:
+        PROJECT_PATH: wavio.Gateway/wavio.Gateway.csproj
+        ASSEMBLY_NAME: wavio.Gateway
+    depends_on:
+      core: { condition: service_healthy }
+      wa-gateway-svc: { condition: service_healthy }
+      wa-ingest-svc: { condition: service_healthy }
+      wa-admin-svc: { condition: service_healthy }
+      wa-billing-svc: { condition: service_healthy }
+      wa-intel-svc: { condition: service_healthy }
+    environment:
+      <<: *dotnet-env
+      Gateway__Clusters__identity__Destinations__primary__Address: http://core:8080
+      Gateway__Clusters__wa-gateway__Destinations__primary__Address: http://wa-gateway-svc:8080
+      Gateway__Clusters__wa-ingest__Destinations__primary__Address: http://wa-ingest-svc:8080
+      Gateway__Clusters__wa-admin__Destinations__primary__Address: http://wa-admin-svc:8080
+      Gateway__Clusters__wa-billing__Destinations__primary__Address: http://wa-billing-svc:8080
+      Gateway__Clusters__wa-intel__Destinations__primary__Address: http://wa-intel-svc:8080
+    # No `ports:` — only Caddy is reachable from outside the compose network.
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      wavio-gateway:
+        condition: service_healthy
+    environment:
+      WAVIO_DOMAIN: ${WAVIO_DOMAIN:?WAVIO_DOMAIN must be set — see deploy/secrets/README.md}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3 (QUIC)
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - wavio-prod-caddy-data:/data
+      - wavio-prod-caddy-config:/config
+
+volumes:
+  wavio-prod-postgres-data:
+  wavio-prod-rabbitmq-data:
+  wavio-prod-caddy-data:
+  wavio-prod-caddy-config:
