@@ -68,6 +68,9 @@ done
 | `messaging` | V007 | platform (wa-gateway / wa-ingest) | outbound_messages, outbound_outbox, inbound_messages, message_statuses, media_assets, suppression_list |
 | `sessions` | V008 | platform (session window manager) | conversation_windows, window_events |
 | `templates` | V009 | platform (wa-admin) | templates, template_versions, template_status_events, template_category_changes, template_lint_results, template_packs |
+| `billing` | V010 | platform (wa-billing) | rate_cards (global), rate_card_entries (global), message_costs (append-only ledger, unique `wamid`), tenant_quotas, usage_counters, payment_transactions, invoices_feed (GSTIN/HSN/SAC), max_price_configs |
+| `quality` | V011 | platform (wa-intel) | number_quality_events (append-only), messaging_tier_events (append-only), guardian_incidents, health_snapshots (append-only) |
+| `consent` | V012 | platform (wa-admin) | opt_in_events (append-only), opt_out_events (append-only), erasure_requests, retention_policies (nullable-tenant default) |
 
 Cross-schema dependency note (Wave 2): `billing.message_costs` (V010+) carries
 the **unique `wamid`** constraint (spec §6) and is the billing source of truth;
@@ -169,6 +172,14 @@ every uuid `*_id` column added by Wave 1 has a FK. Two are deferred to V009
 schema doesn't exist yet at V007), same pattern as the V004→V005
 `audit_log.actor_user_id` FK. `wamid`, `wa_id`, `meta_media_id` etc. are
 varchar external identifiers, exempt by the uuid-only rule.
+
+V010–V012 (billing/quality/consent) also introduce **no new exclusions**:
+every uuid `*_id` column has a FK (`rate_card_id`, `phone_number_id`,
+`tenant_id`). `billing.rate_cards` / `rate_card_entries` are platform-global
+(no `tenant_id`, no RLS — like `ingest.webhook_dedupe`). `wamid`,
+`inbound_wamid`, `evidence_wamid`, `wa_id`, `external_reference`, and the
+free-text `actor`/`requested_by` are external/opaque identifiers, exempt by the
+uuid-only rule.
 
 ## Retention / partitioning
 
