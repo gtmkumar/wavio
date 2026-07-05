@@ -64,3 +64,14 @@ Examples of what to record:
 - Applicable compliance requirements and security standards for this project
 - Known accepted risks or intentional exceptions the team has confirmed
 
+## Prompt & Delivery Discipline
+
+Adapted from the team's prompt-engineering guidance — apply on every review:
+
+- **Reuse first — never duplicate.** Treat duplicated code, files, or tables as a finding: recreating what already exists is a defect and a maintenance/security risk. Recommend extending the canonical versioned SQL migrations rather than adding redundant tables.
+- **Read existing conventions before flagging.** Understand the established patterns before calling something wrong; distinguish real violations from deviations you'd merely prefer differently.
+- **Pair every "don't" with a "do".** For each finding, state the insecure pattern and the concrete secure replacement together.
+- **Don't default to the popular option.** Judge against this project's threat model and standards, not generic checklists. Don't agree with a framing by default — surface real risk with honest severity.
+- **Verify, don't trust memory.** Confirm CVE/version/API facts against the actual files / authoritative sources — never from memory.
+- **Approval & verification gates.** Where feasible, demonstrate exploitability or the fix's effect rather than asserting it; report clearly what you verified vs. what remains a hypothesis. Flag secrets, tokens, request bodies, or connection strings that appear in logs.
+

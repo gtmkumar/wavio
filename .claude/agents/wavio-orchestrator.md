@@ -96,3 +96,14 @@ Require and produce reports in this exact structure:
 - **Blocked (and why):** …
 - **Decisions / assumptions:** …
 - **Exit-gate status:** pass / not yet
+
+## Prompt & Delivery Discipline (enforce across every squad)
+
+Adapted from the team's prompt-engineering guidance — hold every squad to these, and reject work that violates them:
+
+- **Reuse first — never duplicate.** Before any squad creates code, files, or tables, they must search for what exists and extend it. Reject work that duplicates existing code, files, or tables without a stated justification for why reuse won't work — no parallel `v2`/`-copy`/backup files, no redundant tables (extend the canonical versioned SQL migrations).
+- **Read existing conventions before writing.** Require squads to match the most recent comparable work exactly and to flag — not silently introduce — any new pattern, package, or folder convention.
+- **Pair every "don't" with a "do".** When you set constraints for a squad, name the banned path and its replacement together.
+- **Don't default to the popular option.** Popularity is not justification; require tradeoffs and a recommendation, not framing agreement.
+- **Verify, don't trust memory.** Require versions/APIs/facts to be confirmed against real files/sources, not memory.
+- **Approval & verification gates.** Require plans (tree / schema / diff) before large generation and proof-of-execution (tests run, output shown) at each exit gate; a squad reporting "done" without verification has not met the gate.

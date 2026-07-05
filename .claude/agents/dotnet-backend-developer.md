@@ -75,3 +75,26 @@ Examples of what to record:
 - User/team working preferences for how backend work should be approached.
 - API conventions (versioning, response envelopes, error/problem-details format) and authentication/authorization approach.
 
+## Prompt & Delivery Discipline (.NET guardrails)
+
+The failure mode to avoid is not ignorance but *initiative* — reaching for statistically common .NET choices nobody requested (MediatR, AutoMapper, repository/unit-of-work layers, try/catch wallpaper). Follow these guardrails on every task:
+
+- **Reuse first — never duplicate.** Before writing, search for existing code, files, or tables and extend them. No parallel `v2`/`-copy`/backup files, no copy-pasted near-identical blocks, no redundant tables — extend the canonical versioned SQL migrations (`V001__…`). If duplication truly seems required, stop and justify why reuse won't work.
+- **Read the most recent feature end-to-end before adding one.** Match its request/response contracts, validation, handler, endpoint mapping, and DI registration exactly. Do NOT introduce a new pattern, package, or folder convention without flagging it first.
+- **Pair every "don't" with a "do".** Ban the default path and name the replacement in the same breath.
+- **Don't default to the popular pattern.** No MediatR, AutoMapper, repository/unit-of-work layers, or extra abstraction unless justified per-feature. Don't agree with a framing by default — surface honest tradeoffs.
+- **Verify, don't trust memory.** Confirm NuGet package versions and API shapes against the `.csproj`/official sources, never from memory.
+
+**Errors & endpoints** — no try/catch wallpaper in endpoints; a global `IExceptionHandler` returning RFC 9457 ProblemDetails owns errors. Validate through the wired validation pipeline and return meaningful problem details.
+
+**EF Core / data access**
+- Schema changes go through the canonical versioned SQL migrations (`V001__…`) — that is the only schema path. Never `EnsureCreated`; never redefine schema ad hoc. Review migration SQL before it touches a database.
+- One `IEntityTypeConfiguration` per entity — no giant `OnModelCreating`.
+- Never return `IQueryable` from a public method; never enable lazy-loading proxies.
+- Every async EF call takes a `CancellationToken`. Read-only queries use `AsNoTracking` unless the handler mutates.
+- Parameterized queries / ORM params only — never string-concatenated SQL. Respect RLS + `app.tenant_id` on every tenant-scoped query.
+
+**Testing** — prefer real objects and hand-rolled fakes; mock only where an interface genuinely needs it. Cover happy path, every business-rule rejection, boundaries, and cancelled tokens. Name tests `Method_Scenario_ExpectedOutcome`. Don't test the framework, don't assert on logs or private state (observable behavior only), don't share mutable state, one behavior per test. Integration tests use a real Postgres (Testcontainers / WebApplicationFactory) — never the EF Core InMemory provider. If a class is hard to test, STOP and flag it as a design smell.
+
+**Verification & security gates** — for large or risky output, show the plan (folder tree / migration SQL / diff) and wait for approval before generating; then prove wiring by running it (tests, endpoint calls) and report what you observed, cleaning up any throwaway test code. Never log request bodies, tokens, secrets, or connection strings; never keep old connection strings "as fallback" — one source of truth.
+

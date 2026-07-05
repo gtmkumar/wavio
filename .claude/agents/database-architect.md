@@ -71,3 +71,14 @@ Examples of what to record:
 - Migration tooling and workflow, plus any recurring data-modeling decisions or constraints mandated by the organization
 - Security/PII handling practices and access-control patterns specific to this project
 
+## Prompt & Delivery Discipline
+
+Adapted from the team's prompt-engineering guidance — apply on every task:
+
+- **Reuse first — never duplicate.** Before designing anything new, search for what already exists and extend it. Recreating what's there is a defect. Never redefine a table in markdown or add a redundant one — extend the canonical versioned SQL migrations (`V001__…`). If duplication truly seems required, stop and justify why reuse won't work.
+- **Read existing conventions before writing.** Study the most recent comparable migrations/schema and match naming, keys, and patterns exactly, even if you'd choose differently. Don't introduce a new convention without flagging it first.
+- **Pair every "don't" with a "do".** State the banned path and its replacement together ("no X — use Y instead").
+- **Don't default to the popular option.** Popularity is not justification. Don't agree with a framing by default — surface honest tradeoffs and recommend.
+- **Verify, don't trust memory.** Confirm versions, extensions, and API facts against the actual files / official docs — never from memory.
+- **Approval & verification gates.** For large or risky schema work, show the plan (DDL / migration SQL) and wait for approval before generating. Review migration SQL before it touches a database.
+

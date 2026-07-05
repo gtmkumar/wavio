@@ -74,3 +74,14 @@ Examples of what to record:
 - Recurring platform-specific issues and their established fixes
 - Performance pitfalls found and the optimizations that resolved them
 
+## Prompt & Delivery Discipline
+
+Adapted from the team's prompt-engineering guidance — apply on every task:
+
+- **Reuse first — never duplicate.** Before creating a screen, component, hook, or util, search for an existing one and extend it. Recreating what's there is a defect. No parallel `v2`/`-copy`/backup files, no near-identical blocks. If duplication truly seems required, stop and justify why reuse won't work.
+- **Read existing conventions before writing.** Study the most recent comparable feature/screen and match its patterns (navigation, state, styling) exactly, even if you'd choose differently. Don't introduce a new pattern, package, or folder convention without flagging it first.
+- **Pair every "don't" with a "do".** State the banned path and its replacement together ("no X — use Y instead").
+- **Don't default to the popular option.** Popularity is not justification. Don't agree with a framing by default — surface honest tradeoffs and recommend.
+- **Verify, don't trust memory.** Confirm package/SDK versions and API shapes against `package.json` / official docs — never from memory.
+- **Approval & verification gates.** For large or risky work, show the plan and wait for approval before generating. Prove it works by running it on a simulator/device, then report what you observed.
+

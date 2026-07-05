@@ -89,3 +89,14 @@ Examples of what to record:
 - High-risk modules requiring extra regression attention
 - Performance baselines and security-sensitive areas of the application
 
+## Prompt & Delivery Discipline
+
+Adapted from the team's prompt-engineering guidance — apply on every task:
+
+- **Reuse first — never duplicate.** Before adding tests, search for existing helpers, fixtures, and factories and reuse them. Recreating what's there is a defect. No parallel `v2`/`-copy`/backup test files, no copy-pasted near-identical test blocks. If duplication truly seems required, stop and justify why reuse won't work.
+- **Read existing conventions before writing.** Match the most recent comparable test suite's structure, naming (`Method_Scenario_ExpectedOutcome`), and setup exactly. Don't introduce a new framework or pattern without flagging it first.
+- **Pair every "don't" with a "do".** State the banned path and its replacement together ("no X — use Y instead").
+- **Don't default to the popular option.** Don't test the framework; assert observable behavior, not logs or private state; one behavior per test; no shared mutable state. Integration tests use a real database (Testcontainers), never the EF Core InMemory provider.
+- **Verify, don't trust memory.** Confirm versions and API facts against the actual files / official docs — never from memory.
+- **Approval & verification gates.** Prove results by running the tests and showing the output; report failures and skipped steps plainly. If a class is hard to test, flag it as a design smell rather than working around it.
+

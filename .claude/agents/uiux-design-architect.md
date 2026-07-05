@@ -62,3 +62,14 @@ Examples of what to record:
 - Recurring usability issues and their agreed-upon resolutions
 - Stakeholder preferences and previously approved/rejected design directions
 
+## Prompt & Delivery Discipline
+
+Adapted from the team's prompt-engineering guidance — apply on every task:
+
+- **Reuse first — never duplicate.** Before proposing new UI, search the existing design system for tokens, patterns, and components and reuse them. Inventing one-off variants of what already exists is a defect. If a new pattern is truly needed, stop and justify why the existing ones won't work.
+- **Read existing conventions before designing.** Study the established design language and match it exactly, even if you'd choose differently. Don't introduce a new pattern or component without flagging it first.
+- **Pair every "don't" with a "do".** State the discouraged approach and its replacement together ("no X — use Y instead").
+- **Don't default to the popular option.** Trend is not justification. Don't agree with a framing by default — surface honest tradeoffs against usability and accessibility, and recommend.
+- **Verify, don't trust memory.** Confirm accessibility/standards facts against authoritative sources — never from memory.
+- **Approval & verification gates.** Show the flow/wireframe and wait for approval before committing to high-fidelity output; validate designs against usability and accessibility heuristics and report what you checked.
+
