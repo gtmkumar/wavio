@@ -6,3 +6,4 @@
 - [2026-07-03 PR #44 audit](2026-07-03-pr44-template-lifecycle.md) — wa-admin template lifecycle: APPROVE; RLS/permission wiring verified; X-Tenant-Id gap latent-only → #42; DLQ-transient + size-cap Should-fixes
 - [2026-07-03 PR #43 audit](2026-07-03-pr43-session-windows.md) — wa-intel session windows: APPROVE; RabbitMq S2 fail-open recurs; raw wa_id in URL path = new trace/log PII; simulate double-gate + scanner GUC verified
 - [2026-07-03 PR #45 audit](2026-07-03-pr45-gateway-send.md) — wa-gateway send API: APPROVE; lease-vs-HttpClient-timeout double-send + missing eager Meta:Graph boot guard = key Should-fixes; cross-tenant send fails closed via RLS at dispatch
+- [2026-07-06 issue #42 re-verify](2026-07-06-issue42-reverify.md) — S1/S3/S5/S6 + 3 nits all PASS on develop worktree; APPROVE-with-notes; new Low: fingerprint secret not in deploy.yml gate = silent fail-open

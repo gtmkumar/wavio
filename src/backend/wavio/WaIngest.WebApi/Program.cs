@@ -109,7 +109,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opts =>
     {
         opts.Authority            = jwtAuthority;
-        opts.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        // Fail-closed by default (HTTPS metadata required outside Development). Only an
+        // explicit Jwt:RequireHttpsMetadata=false override disables it — reserved for the
+        // prod compose's internal core:8080 hop, where Caddy already terminates TLS at the
+        // edge and this JWKS fetch never leaves the compose-internal network (S1).
+        opts.RequireHttpsMetadata = builder.Configuration.GetValue<bool?>("Jwt:RequireHttpsMetadata")
+            ?? !builder.Environment.IsDevelopment();
 
         opts.TokenValidationParameters = new TokenValidationParameters
         {

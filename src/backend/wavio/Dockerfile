@@ -11,8 +11,11 @@
 # CI builds+pushes these to GHCR (see .github/workflows/deploy.yml); the VPS only
 # ever pulls, never builds (docs/BUILD_PLAN.md "Runtime: Docker Compose on the VPS").
 
-ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
-ARG DOTNET_RUNTIME_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0
+# Pinned by digest (resolved locally via `docker pull` + `docker inspect --format=
+# '{{index .RepoDigests 0}}'` on 2026-07-06), not just the `10.0` tag — a mutable tag can
+# be repointed upstream at any time. Bump deliberately: re-pull the tag, re-pin the digest.
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk@sha256:ea8bde36c11b6e7eec2656d0e59101d4462f6bd630730f2c8201ed0572b295d5
+ARG DOTNET_RUNTIME_IMAGE=mcr.microsoft.com/dotnet/aspnet@sha256:7644f992230d35cf230017189d4038c0ae0f7388b13f4f7ae1900a155bafb597
 
 FROM ${DOTNET_SDK_IMAGE} AS build
 ARG PROJECT_PATH

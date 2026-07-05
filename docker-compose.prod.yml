@@ -23,7 +23,10 @@ x-dotnet-service: &dotnet-service
   restart: unless-stopped
   environment: &dotnet-env
     ASPNETCORE_ENVIRONMENT: Production
-    Pii__EncryptionKey: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set — see deploy/secrets/README.md}
+    # Pii__EncryptionKey is intentionally NOT in this shared anchor — only services that
+    # call AddSharedDataModel() (i.e. touch WavioDbContext) need it. Each of those services
+    # sets it explicitly below. wavio-gateway (the YARP reverse proxy) never touches the
+    # DB, so it must not receive this secret at all (least-privilege / smaller blast radius).
   healthcheck:
     # /health and /alive are Development-only by design (wavio.ServiceDefaults —
     # see its comment referencing https://aka.ms/aspire/healthchecks). Any HTTP
@@ -37,7 +40,10 @@ x-dotnet-service: &dotnet-service
 
 services:
   postgres:
-    image: postgres:16
+    # Pinned by digest (resolved locally via `docker pull postgres:16` + `docker inspect
+    # --format='{{index .RepoDigests 0}}'` on 2026-07-06) so a mutable tag can't silently
+    # change what ships to prod. Bump deliberately: re-pull postgres:16, re-pin the digest.
+    image: postgres:16@sha256:fe03a7605299a34ddf5e4f285dff78c3d7190a576b3c6b46f2fcff69f4bffd54
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -59,7 +65,9 @@ services:
     # No `ports:` — never reachable from outside the compose network.
 
   rabbitmq:
-    image: rabbitmq:3-management
+    # Pinned by digest (resolved locally via `docker pull rabbitmq:3-management` + `docker
+    # inspect --format='{{index .RepoDigests 0}}'` on 2026-07-06) — see postgres above for why.
+    image: rabbitmq:3-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?RABBITMQ_DEFAULT_USER must be set — see deploy/secrets/README.md}
@@ -94,9 +102,13 @@ services:
       # db/migrations isn't in the Docker build context (src/backend/wavio) —
       # bind-mount it at run time instead of baking it into the image.
       - ./db/migrations:/db/migrations:ro
+    environment:
+      # Superuser connection string via env, NOT `command:` (S6) — compose `command:`
+      # arguments land in /proc/<pid>/cmdline and `docker inspect`, both world-readable on
+      # the host. wavio.DbMigrator's ResolveConnectionString() checks ConnectionStrings__Admin
+      # before falling back to its (dev-only) default, so no code change was needed.
+      ConnectionStrings__Admin: Host=postgres;Port=5432;Database=waplatform;Username=postgres;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     command:
-      - "--connection-string"
-      - "Host=postgres;Port=5432;Database=waplatform;Username=postgres;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}"
       - "--migrations-dir"
       - "/db/migrations"
 
@@ -114,6 +126,7 @@ services:
         condition: service_healthy
     environment:
       <<: *dotnet-env
+      Pii__EncryptionKey: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set — see deploy/secrets/README.md}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
       Jwt__PrivateKeyPath: ${JWT_PRIVATE_KEY_PATH:-/run/secrets/jwt-private-key.pem}
     volumes:
@@ -134,9 +147,15 @@ services:
       core: { condition: service_healthy }
     environment:
       <<: *dotnet-env
+      Pii__EncryptionKey: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set — see deploy/secrets/README.md}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
       ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
       Jwt__Authority: http://core:8080
+      # Jwt:Authority is an internal compose hop (Caddy already terminates TLS at the edge;
+      # this JWKS fetch never leaves the compose-internal network) — the app's own default
+      # is fail-closed (RequireHttpsMetadata=true) outside Development, which would 500 every
+      # authenticated request against this http:// Authority. Override ONLY for that reason (S1).
+      Jwt__RequireHttpsMetadata: "false"
 
   wa-ingest-svc:
     <<: *dotnet-service
@@ -153,9 +172,15 @@ services:
       core: { condition: service_healthy }
     environment:
       <<: *dotnet-env
+      Pii__EncryptionKey: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set — see deploy/secrets/README.md}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
       ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
       Jwt__Authority: http://core:8080
+      # Jwt:Authority is an internal compose hop (Caddy already terminates TLS at the edge;
+      # this JWKS fetch never leaves the compose-internal network) — the app's own default
+      # is fail-closed (RequireHttpsMetadata=true) outside Development, which would 500 every
+      # authenticated request against this http:// Authority. Override ONLY for that reason (S1).
+      Jwt__RequireHttpsMetadata: "false"
 
   wa-admin-svc:
     <<: *dotnet-service
@@ -172,9 +197,15 @@ services:
       core: { condition: service_healthy }
     environment:
       <<: *dotnet-env
+      Pii__EncryptionKey: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set — see deploy/secrets/README.md}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
       ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
       Jwt__Authority: http://core:8080
+      # Jwt:Authority is an internal compose hop (Caddy already terminates TLS at the edge;
+      # this JWKS fetch never leaves the compose-internal network) — the app's own default
+      # is fail-closed (RequireHttpsMetadata=true) outside Development, which would 500 every
+      # authenticated request against this http:// Authority. Override ONLY for that reason (S1).
+      Jwt__RequireHttpsMetadata: "false"
 
   wa-billing-svc:
     <<: *dotnet-service
@@ -191,9 +222,15 @@ services:
       core: { condition: service_healthy }
     environment:
       <<: *dotnet-env
+      Pii__EncryptionKey: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set — see deploy/secrets/README.md}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
       ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
       Jwt__Authority: http://core:8080
+      # Jwt:Authority is an internal compose hop (Caddy already terminates TLS at the edge;
+      # this JWKS fetch never leaves the compose-internal network) — the app's own default
+      # is fail-closed (RequireHttpsMetadata=true) outside Development, which would 500 every
+      # authenticated request against this http:// Authority. Override ONLY for that reason (S1).
+      Jwt__RequireHttpsMetadata: "false"
 
   wa-intel-svc:
     <<: *dotnet-service
@@ -210,9 +247,15 @@ services:
       core: { condition: service_healthy }
     environment:
       <<: *dotnet-env
+      Pii__EncryptionKey: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set — see deploy/secrets/README.md}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=waplatform;Username=app_user;Password=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD must be set}
       ConnectionStrings__RabbitMq: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
       Jwt__Authority: http://core:8080
+      # Jwt:Authority is an internal compose hop (Caddy already terminates TLS at the edge;
+      # this JWKS fetch never leaves the compose-internal network) — the app's own default
+      # is fail-closed (RequireHttpsMetadata=true) outside Development, which would 500 every
+      # authenticated request against this http:// Authority. Override ONLY for that reason (S1).
+      Jwt__RequireHttpsMetadata: "false"
 
   wavio-gateway:
     <<: *dotnet-service
@@ -241,7 +284,9 @@ services:
     # No `ports:` — only Caddy is reachable from outside the compose network.
 
   caddy:
-    image: caddy:2-alpine
+    # Pinned by digest (resolved locally via `docker pull caddy:2-alpine` + `docker inspect
+    # --format='{{index .RepoDigests 0}}'` on 2026-07-06) — see postgres above for why.
+    image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
     restart: unless-stopped
     depends_on:
       wavio-gateway:

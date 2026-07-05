@@ -93,21 +93,46 @@ jobs:
       # ssh-action step fail with a cryptic connection error.
       - name: Check VPS secrets are configured
         id: secrets-check
+        # Secrets are passed via env: and tested as shell variables below, never interpolated
+        # directly into the run: script text — keeps `${{ secrets.* }}` out of shell logic.
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST_FINGERPRINT: ${{ secrets.VPS_HOST_FINGERPRINT }}
         run: |
-          if [ -z "${{ secrets.VPS_HOST }}" ] || [ -z "${{ secrets.VPS_USER }}" ] || [ -z "${{ secrets.VPS_SSH_KEY }}" ]; then
+          # VPS_HOST_FINGERPRINT is part of the gate on purpose: ssh-action treats an empty
+          # fingerprint: input as "don't verify the host key", so running with the other three
+          # secrets set but this one missing would silently drop the S3 MITM protection.
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_USER" ] || [ -z "$VPS_SSH_KEY" ] || [ -z "$VPS_HOST_FINGERPRINT" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::VPS_HOST/VPS_USER/VPS_SSH_KEY are not all configured yet — skipping the actual rollout. Expected before a VPS exists; configure these repo secrets when ready (see deploy/README.md \"Production\")."
+            echo "::notice::VPS_HOST/VPS_USER/VPS_SSH_KEY/VPS_HOST_FINGERPRINT are not all configured yet — skipping the actual rollout. Expected before a VPS exists; configure these repo secrets when ready (see deploy/README.md \"Production\")."
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Roll out
         if: steps.secrets-check.outputs.configured == 'true'
-        uses: appleboy/ssh-action@v1
+        # Pinned to a commit SHA, not the mutable "v1" tag (S3) — a mutable tag can be
+        # repointed by the action's maintainer (or an attacker who compromises their account)
+        # to run arbitrary code with VPS_SSH_KEY in scope. Verified 2026-07-06: this SHA is
+        # exactly what both the "v1" tag and the tagged "v1.2.5" release point to (`gh api
+        # repos/appleboy/ssh-action/tags` — same commit object for both refs). Bump
+        # deliberately: re-check the new tag's commit SHA before repinning.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          # SHA256 fingerprint of the VPS's SSH host key, so this action verifies the host
+          # identity instead of trusting it blindly on first connect (MITM protection). Get
+          # it BEFORE VPS_SSH_KEY is ever configured/used, either directly on the VPS (per
+          # appleboy/ssh-action's own docs):
+          #   ssh <vps-host> ssh-keygen -l -f /etc/ssh/ssh_host_ed25519_key.pub | cut -d ' ' -f2
+          # or, if you don't have a session yet, from a trusted machine:
+          #   ssh-keyscan -H <vps-host> | ssh-keygen -lf -
+          # then store the printed "SHA256:...." string as the VPS_HOST_FINGERPRINT secret.
+          fingerprint: ${{ secrets.VPS_HOST_FINGERPRINT }}
           script: |
             set -euo pipefail
             cd /opt/wavio
