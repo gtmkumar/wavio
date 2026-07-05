@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <!-- xUnit's MethodName_Scenario_Expected naming convention is intentional and
+             industry-standard for test readability; CA1707 (no underscores) does not apply
+             to test projects (same suppression as every other *.Tests project). -->
+        <NoWarn>$(NoWarn);CA1707</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- ScopedCurrentTenant/HttpContextCurrentTenant need IHttpContextAccessor — same
+             FrameworkReference reasoning as WaGateway.Infrastructure.csproj / WaAdmin.Infrastructure.csproj. -->
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageReference Include="xunit" Version="2.9.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+        <PackageReference Include="Moq" Version="4.20.72" />
+        <!-- Real database tier (issue #46): one throwaway postgres:16 container per test run,
+             db/migrations/V001..V013 applied through wavio.DbMigrator (see DatabaseFixture) — no
+             EF InMemory provider anywhere in this project. This is the whole point of this
+             project: OutboxDispatcherService's ExecuteUpdateAsync fenced writes and the templates
+             circular-FK two-step save both throw/no-op under InMemory (see the class doc
+             comments this project's tests reference), so they need a real Npgsql-backed Postgres. -->
+        <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
+        <PackageReference Include="Npgsql" Version="10.0.3" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+        <ProjectReference Include="..\..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
+        <ProjectReference Include="..\..\wavio.Utilities\wavio.Utilities.csproj" />
+
+        <ProjectReference Include="..\..\WaGateway.Application\WaGateway.Application.csproj" />
+        <ProjectReference Include="..\..\WaGateway.Infrastructure\WaGateway.Infrastructure.csproj" />
+
+        <ProjectReference Include="..\..\WaAdmin.Application\WaAdmin.Application.csproj" />
+        <ProjectReference Include="..\..\WaAdmin.Infrastructure\WaAdmin.Infrastructure.csproj" />
+
+        <ProjectReference Include="..\..\WaBilling.Application\WaBilling.Application.csproj" />
+        <ProjectReference Include="..\..\WaBilling.Infrastructure\WaBilling.Infrastructure.csproj" />
+    </ItemGroup>
+
+</Project>

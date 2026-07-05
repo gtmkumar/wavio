@@ -40,8 +40,14 @@ jobs:
       # No test projects exist yet (Wave 0) — this must still run green as the hook
       # for real tests landing in later waves. Do not add filler test projects just
       # to give this step something to do.
+      #
+      # WaPlatform.IntegrationTests (issue #46) is excluded here on purpose: it spins up its own
+      # postgres:16 Testcontainers container and applies all 13 migrations, which is real but slow
+      # work that would otherwise serialize inside this job on every run. It has its own
+      # "integration-tests" job below (parallel, not blocking this one) — see that job for why no
+      # `services: postgres` block is needed despite the "real Postgres" requirement.
       - name: Test
-        run: dotnet test "$SOLUTION" --configuration Release --no-build
+        run: dotnet test "$SOLUTION" --configuration Release --no-build --filter "FullyQualifiedName!~WaPlatform.IntegrationTests"
 
   sqlfluff:
     name: sqlfluff lint (db/migrations)
@@ -107,6 +113,32 @@ jobs:
           PGHOST: localhost
           PGPORT: "5432"
           PGDATABASE: waplatform
+
+  integration-tests:
+    name: Integration tests (real Postgres via Testcontainers, issue #46)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # No `services: postgres` block, unlike db-migrations above: DatabaseFixture (this project's
+      # xunit collection fixture) provisions its OWN throwaway postgres:16 container per test run
+      # via Testcontainers, against the runner's own Docker daemon. GitHub-hosted ubuntu-latest
+      # runners have Docker pre-installed and running with no extra setup — Testcontainers just
+      # works. The fixture applies db/migrations/V001..V013 by invoking the real wavio.DbMigrator
+      # (same "dotnet run --project ... -- --connection-string ..." shape as the db-migrations job
+      # above, just pointed at the throwaway container instead of a service container).
+      - name: Restore
+        run: dotnet restore src/backend/wavio/tests/WaPlatform.IntegrationTests/WaPlatform.IntegrationTests.csproj
+
+      - name: Build
+        run: dotnet build src/backend/wavio/tests/WaPlatform.IntegrationTests/WaPlatform.IntegrationTests.csproj --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test src/backend/wavio/tests/WaPlatform.IntegrationTests/WaPlatform.IntegrationTests.csproj --configuration Release --no-build
 
   contracts-placeholder:
     name: Contract tests (placeholder — Wave 1)

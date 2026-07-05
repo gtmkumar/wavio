@@ -95,6 +95,16 @@ public sealed partial class OutboxDispatcherService : BackgroundService
         _logger = logger;
     }
 
+    /// <summary>Test seam (issue #46): the lease id this instance claims outbox entries under.
+    /// <c>ExecuteUpdateAsync</c> (the fenced-write mechanism this whole class hinges on) throws
+    /// against EF Core's InMemory provider, so this class has zero unit-test coverage (see the
+    /// class doc comment's duplicate-send-hazard section and
+    /// .claude/agent-memory/dotnet-backend-developer/issue-46-integration-tests.md) — real
+    /// coverage requires driving <see cref="LeaseNextBatchAsync"/>/<see cref="ProcessEntryAsync"/>
+    /// directly against a real Postgres, which needs this and those two methods visible to
+    /// WaPlatform.IntegrationTests (<c>InternalsVisibleTo</c> in this project's .csproj).</summary>
+    internal string InstanceId => _instanceId;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(_pollInterval);
@@ -127,7 +137,7 @@ public sealed partial class OutboxDispatcherService : BackgroundService
     /// <see cref="_staleLockTimeout"/>) so a crashed instance's claimed-but-unfinished work is
     /// picked up again — this is the crash-recovery half of "zero message loss."
     /// </summary>
-    private async Task<List<Guid>> LeaseNextBatchAsync(CancellationToken ct)
+    internal async Task<List<Guid>> LeaseNextBatchAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IWaGatewayDbContext>();
@@ -168,7 +178,7 @@ public sealed partial class OutboxDispatcherService : BackgroundService
         return claimed;
     }
 
-    private async Task ProcessEntryAsync(Guid outboxEntryId, CancellationToken ct)
+    internal async Task ProcessEntryAsync(Guid outboxEntryId, CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IWaGatewayDbContext>();

@@ -36,4 +36,11 @@
         <ProjectReference Include="..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- Exposes OutboxDispatcherService's internal lease-claim/process-entry seam (issue #46)
+             to the real-Postgres integration tests — same pattern as WaGateway.Application's own
+             InternalsVisibleTo to WaGateway.Tests. -->
+        <InternalsVisibleTo Include="WaPlatform.IntegrationTests" />
+    </ItemGroup>
+
 </Project>
