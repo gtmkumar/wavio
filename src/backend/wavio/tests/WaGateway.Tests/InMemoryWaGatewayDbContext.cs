@@ -1,6 +1,7 @@
 using WaGateway.Application.Common.Interfaces;
 using wavio.SharedDataModel.Entities.Messaging;
 using wavio.SharedDataModel.Entities.Quality;
+using wavio.SharedDataModel.Entities.Templates;
 using wavio.SharedDataModel.Entities.Waba;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +23,10 @@ public sealed class InMemoryWaGatewayDbContext : DbContext, IWaGatewayDbContext
     public DbSet<WabaPhoneNumber> WabaPhoneNumbers => Set<WabaPhoneNumber>();
     public DbSet<GuardianIncident> GuardianIncidents => Set<GuardianIncident>();
     public DbSet<SuppressionListEntry> SuppressionListEntries => Set<SuppressionListEntry>();
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<CampaignRecipient> CampaignRecipients => Set<CampaignRecipient>();
+    public DbSet<Template> Templates => Set<Template>();
+    public DbSet<TemplateVersion> TemplateVersions => Set<TemplateVersion>();
 
     public static InMemoryWaGatewayDbContext Create(string databaseName) =>
         new(new DbContextOptionsBuilder<InMemoryWaGatewayDbContext>()

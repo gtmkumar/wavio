@@ -122,6 +122,13 @@ public sealed class IdentitySeeder
         ("consent.requests.read",     "consent", "read",    "View an erasure/export request's status", RiskLevel.Normal),
         ("consent.retention.read",    "consent", "read",    "View retention policies",                 RiskLevel.Low),
         ("consent.retention.manage",  "consent", "manage",  "Set this tenant's retention-policy override", RiskLevel.Critical),
+
+        // wa-gateway-svc Campaign engine — broadcast with tier-aware chunking (issue #22, spec §4.2/§7.1).
+        ("campaigns.list",    "campaigns", "list",   "List campaigns",                                  RiskLevel.Low),
+        ("campaigns.read",    "campaigns", "read",   "View campaign progress and failure breakdown",    RiskLevel.Low),
+        ("campaigns.create",  "campaigns", "create", "Draft a campaign (audience + pinned template)",   RiskLevel.Normal),
+        ("campaigns.launch",  "campaigns", "launch", "Launch a campaign — starts dispatching real spend", RiskLevel.High),
+        ("campaigns.cancel",  "campaigns", "cancel", "Cancel a draft/running campaign",                 RiskLevel.Normal),
     ];
 
     private async Task<Dictionary<string, Permission>> SeedPermissionsAsync(CancellationToken ct)
@@ -246,7 +253,8 @@ public sealed class IdentitySeeder
             // incidents/events even though it's non-prod-gated).
             "quality.health.read", "quality.tier_advisor.read",
             "consent.write", "consent.read", "consent.requests.manage", "consent.requests.read",
-            "consent.retention.read", "consent.retention.manage");
+            "consent.retention.read", "consent.retention.manage",
+            "campaigns.list", "campaigns.read", "campaigns.create", "campaigns.launch", "campaigns.cancel");
 
         // staff: read-only + the example feature + day-to-day messaging.
         Grant("staff", "users.list", "users.read", "roles.list", "permissions.list", "widgets.manage",
@@ -256,7 +264,11 @@ public sealed class IdentitySeeder
             // Day-to-day consent capture (opt-in/opt-out) is a front-line staff action; raising a
             // DPDP erasure/export request or changing retention policy is not (Critical risk —
             // tenant_admin only, per the grant above).
-            "consent.write", "consent.read", "consent.requests.read");
+            "consent.write", "consent.read", "consent.requests.read",
+            // Staff can draft a campaign but not launch/cancel one (High risk — launching commits
+            // real spend; a tenant_admin approval gate, per the grant above) or cancel one either
+            // (a running campaign already has real dispatched spend behind it).
+            "campaigns.list", "campaigns.read", "campaigns.create");
 
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Seeded role→permission grants.");

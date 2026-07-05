@@ -1,5 +1,6 @@
 using wavio.SharedDataModel.Entities.Messaging;
 using wavio.SharedDataModel.Entities.Quality;
+using wavio.SharedDataModel.Entities.Templates;
 using wavio.SharedDataModel.Entities.Waba;
 using Microsoft.EntityFrameworkCore;
 
@@ -40,6 +41,25 @@ public interface IWaGatewayDbContext
     /// utility/authentication/service sends are never blocked by it.
     /// </summary>
     DbSet<SuppressionListEntry> SuppressionListEntries { get; }
+
+    /// <summary>messaging.campaigns / campaign_recipients (issue #22, spec §4.2/§7.1) — the
+    /// broadcast-with-tier-aware-chunking engine. <see cref="Campaigns"/> is written by the
+    /// Create/Launch/Cancel command handlers; <see cref="CampaignRecipients"/> additionally by
+    /// <c>CampaignChunkerService</c> (claims 'pending' rows, dispatches through
+    /// <see cref="wavio.SharedDataModel.Entities.Messaging.OutboundMessage"/>'s own accept path)
+    /// and <c>CampaignStatusConsumerService</c> (delivered/read/failed rollup off
+    /// <c>wa.message.status.v1</c>).</summary>
+    DbSet<Campaign> Campaigns { get; }
+    DbSet<CampaignRecipient> CampaignRecipients { get; }
+
+    /// <summary>templates.templates / template_versions (issue #16, cross-schema read-only —
+    /// same "same-DB, different-schema reads are the established convention for background
+    /// scanners" precedent as WaIntel's <c>HealthSnapshotRollupService</c>, issue #20 decision #5).
+    /// A campaign pins a <see cref="TemplateVersion"/>; its category/name/language and current
+    /// pause/disable state live on the parent <see cref="Template"/> row. WaGateway never writes
+    /// to either table.</summary>
+    DbSet<Template> Templates { get; }
+    DbSet<TemplateVersion> TemplateVersions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

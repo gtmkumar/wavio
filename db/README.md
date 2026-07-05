@@ -65,7 +65,7 @@ done
 | `identity_access` | V005 | core identity | users, user_profiles, roles, permissions, role_permissions, user_permission_override, user_scope_memberships, refresh_tokens, password_resets, otp_codes, login_history, audit_logs |
 | `kernel` | V006 | core identity | outbox_events, outbox_consumed_events, system_settings, file_attachments (**no feature_flags — see `system`**) |
 | `app` | V001 | platform | RLS helper functions + partition maintenance (no tables) |
-| `messaging` | V007 | platform (wa-gateway / wa-ingest) | outbound_messages, outbound_outbox, inbound_messages, message_statuses, media_assets, suppression_list |
+| `messaging` | V007, V013 | platform (wa-gateway / wa-ingest) | outbound_messages, outbound_outbox, inbound_messages, message_statuses, media_assets, suppression_list, campaigns (V013), campaign_recipients (V013) |
 | `sessions` | V008 | platform (session window manager) | conversation_windows, window_events |
 | `templates` | V009 | platform (wa-admin) | templates, template_versions, template_status_events, template_category_changes, template_lint_results, template_packs |
 | `billing` | V010 | platform (wa-billing) | rate_cards (global), rate_card_entries (global), message_costs (append-only ledger, unique `wamid`), tenant_quotas, usage_counters, payment_transactions, invoices_feed (GSTIN/HSN/SAC), max_price_configs |
@@ -180,6 +180,13 @@ every uuid `*_id` column has a FK (`rate_card_id`, `phone_number_id`,
 `inbound_wamid`, `evidence_wamid`, `wa_id`, `external_reference`, and the
 free-text `actor`/`requested_by` are external/opaque identifiers, exempt by the
 uuid-only rule.
+
+V013 (campaigns) introduces **no new exclusions**: every uuid `*_id` column
+has a FK (`tenant_id`, `phone_number_id`, `template_version_id` — campaigns
+pin immutable template versions per spec §4.4 — `campaign_id`,
+`outbound_message_id`). The spec §6 schema map predates the campaign engine;
+these two tables extend the `messaging` schema (wa-gateway owns broadcast
+fan-out through the existing outbound accept path).
 
 ## Retention / partitioning
 

@@ -99,6 +99,10 @@ public class WavioDbContext : DbContext
     // messaging.suppression_list (V007) went unmapped until issue #21 gave it a writer/reader.
     public DbSet<SuppressionListEntry> SuppressionListEntries => Set<SuppressionListEntry>();
 
+    // messaging.campaigns / campaign_recipients (issue #22: broadcast with tier-aware chunking)
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<CampaignRecipient> CampaignRecipients => Set<CampaignRecipient>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

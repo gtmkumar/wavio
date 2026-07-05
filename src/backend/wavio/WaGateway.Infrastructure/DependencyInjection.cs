@@ -1,9 +1,11 @@
 using WaGateway.Application.Common.Interfaces;
 using WaGateway.Infrastructure.BackgroundWork;
+using WaGateway.Infrastructure.BillingEstimator;
 using WaGateway.Infrastructure.Graph;
 using WaGateway.Infrastructure.Messaging;
 using WaGateway.Infrastructure.Persistence;
 using WaGateway.Infrastructure.RateLimiting;
+using WaGateway.Infrastructure.TenantResolution;
 using WaGateway.Infrastructure.WindowState;
 using wavio.SharedDataModel.Contracts;
 using Microsoft.Extensions.Configuration;
@@ -15,7 +17,8 @@ namespace WaGateway.Infrastructure;
 /// <summary>
 /// DI registration for the wa-gateway-svc Infrastructure layer — outbound send API (issue #14):
 /// data surface, RabbitMQ publisher, Meta Graph client, window-state client, rate limiters, and
-/// the outbox dispatcher.
+/// the outbox dispatcher; plus the campaign engine (issue #22): billing-estimator client, tenant
+/// resolver, chunker, and status-rollup consumer.
 /// Call from the host: <c>builder.Services.AddWaGatewayInfrastructure(builder.Configuration);</c>
 /// The host must ALSO call <c>services.Replace(ServiceDescriptor.Scoped&lt;ICurrentTenant,
 /// ScopedCurrentTenant&gt;())</c> after <c>AddCurrentTenant()</c> — see Program.cs.
@@ -92,6 +95,18 @@ public static class DependencyInjection
             var baseUrl = configuration["Services:WaIntel:BaseUrl"] ?? "http://localhost:5105";
             client.BaseAddress = new Uri(baseUrl);
         });
+
+        // Campaign engine (issue #22): pre-launch spend estimate (HTTP hop to wa-billing-svc,
+        // same precedent as the window-state client above), cross-tenant tenant resolution for
+        // the status-rollup consumer, the chunker, and the consumer itself.
+        services.AddHttpClient<IBillingEstimatorClient, HttpBillingEstimatorClient>(client =>
+        {
+            var baseUrl = configuration["Services:WaBilling:BaseUrl"] ?? "http://localhost:5104";
+            client.BaseAddress = new Uri(baseUrl);
+        });
+        services.AddSingleton<ITenantResolver, WabaPhoneNumberTenantResolver>();
+        services.AddHostedService<CampaignChunkerService>();
+        services.AddHostedService<CampaignStatusConsumerService>();
 
         services.AddHostedService<OutboxDispatcherService>();
 
