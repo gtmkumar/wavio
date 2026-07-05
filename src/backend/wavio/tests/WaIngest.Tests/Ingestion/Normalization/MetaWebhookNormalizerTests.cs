@@ -164,6 +164,50 @@ public class MetaWebhookNormalizerTests
         Assert.True(evt.Billable);
         Assert.Equal("utility", evt.PricingCategory);
         Assert.Equal("PMP", evt.PricingModel);
+        // No amount/currency/country in this fixture — PMP fields must stay null, not default to 0.
+        Assert.Null(evt.Amount);
+        Assert.Null(evt.Currency);
+        Assert.Null(evt.DestinationMarket);
+    }
+
+    [Fact]
+    public void Normalize_StatusWithPmpAmount_PopulatesMessageStatusV1PricingFields()
+    {
+        // Issue #19: nested {"amount": {"value": ..., "currency": ...}} shape.
+        var root = Parse("""
+        {
+          "entry": [{
+            "id": "waba-123",
+            "changes": [{
+              "field": "messages",
+              "value": {
+                "metadata": { "phone_number_id": "phone-1" },
+                "statuses": [{
+                  "id": "wamid.PMP1",
+                  "status": "delivered",
+                  "timestamp": "1700000000",
+                  "pricing": {
+                    "billable": true,
+                    "category": "marketing",
+                    "pricing_model": "PMP",
+                    "country": "IN",
+                    "amount": { "value": 0.87, "currency": "INR" }
+                  }
+                }]
+              }
+            }]
+          }]
+        }
+        """);
+
+        var result = Assert.Single(MetaWebhookNormalizer.Normalize(root, out _));
+        var evt = Assert.IsType<MessageStatusV1>(result.Event);
+
+        Assert.Equal(0.87m, evt.Amount);
+        Assert.Equal("INR", evt.Currency);
+        Assert.Equal("IN", evt.DestinationMarket);
+        Assert.NotNull(evt.PricingRawJson);
+        Assert.Contains("\"amount\"", evt.PricingRawJson);
     }
 
     [Fact]

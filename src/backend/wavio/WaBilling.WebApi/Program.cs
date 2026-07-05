@@ -48,6 +48,17 @@ builder.Services.AddSharedDataModel(
     builder.Configuration,
     builder.Environment);
 
+// ── RabbitMq config (same guard as WaIntel/WaIngest Program.cs): fail closed outside Development ──
+// RabbitMqConnectionManager (WaBilling.Infrastructure) independently refuses the same
+// guest:guest@localhost fallback outside Development — this is the fast, eager, boot-time half of
+// that same guard, so a missing broker config is caught before the host ever accepts traffic
+// rather than silently talking to a would-be-default local broker in production.
+var rabbitMqConnStr = builder.Configuration.GetConnectionString("RabbitMq");
+if (string.IsNullOrWhiteSpace(rabbitMqConnStr) && !builder.Environment.IsDevelopment())
+    throw new InvalidOperationException(
+        "ConnectionStrings:RabbitMq is required outside Development. Provide it via " +
+        "ConnectionStrings__RabbitMq env var or a secrets provider. Wavio will NOT start without it.");
+
 // ── wa-billing-svc bounded-context composition ───────────────────────────────────────
 builder.Services
     .AddWaBillingApplication()                          // validators + command/query handlers (no mediator)

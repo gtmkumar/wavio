@@ -7,7 +7,10 @@ namespace wavio.SharedDataModel.Entities.Waba;
 /// instead since it runs before a tenant is known — this entity is for callers that already have
 /// a tenant context, like the dispatcher, which resolves it via its scoped tenant override).
 /// Only the columns currently consumed anywhere are mapped; the table has more (business account,
-/// verified name, quality rating, etc.) not yet needed by any service.
+/// verified name, etc.) not yet needed by any service.
+/// <see cref="MessagingTier"/> was added by issue #19 — WaBilling's estimator reuses Meta's own
+/// messaging-tier code (TIER_1K/TIER_10K/...) as the volume-tier key into
+/// <c>billing.rate_card_entries.volume_tier</c>, rather than inventing separate tier thresholds.
 /// </summary>
 public class WabaPhoneNumber
 {
@@ -17,6 +20,11 @@ public class WabaPhoneNumber
     public string MetaPhoneNumberId { get; set; } = null!;
     public string DisplayPhoneNumber { get; set; } = null!;
     public string Status { get; set; } = null!;
+
+    /// <summary>Meta's own messaging-tier code (e.g. TIER_1K/TIER_10K/TIER_100K/TIER_UNLIMITED),
+    /// null until Meta reports one. Issue #19: doubles as the volume-tier key for utility/auth
+    /// rate-card lookups (marketing never uses a tier — spec §4.7, no volume discounts).</summary>
+    public string? MessagingTier { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }

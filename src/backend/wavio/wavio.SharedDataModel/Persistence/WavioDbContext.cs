@@ -1,3 +1,4 @@
+using wavio.SharedDataModel.Entities.Billing;
 using wavio.SharedDataModel.Entities.IdentityAccess;
 using wavio.SharedDataModel.Entities.Ingest;
 using wavio.SharedDataModel.Entities.Kernel;
@@ -72,6 +73,14 @@ public class WavioDbContext : DbContext
 
     // waba (issue #14: dispatcher's internal-id -> Meta phone_number_id bridge)
     public DbSet<WabaPhoneNumber> WabaPhoneNumbers => Set<WabaPhoneNumber>();
+
+    // billing (issue #19: PMP cost ledger, rate cards, quotas/metering, invoice reconciliation)
+    public DbSet<RateCard> RateCards => Set<RateCard>();
+    public DbSet<RateCardEntry> RateCardEntries => Set<RateCardEntry>();
+    public DbSet<MessageCost> MessageCosts => Set<MessageCost>();
+    public DbSet<TenantQuota> TenantQuotas => Set<TenantQuota>();
+    public DbSet<UsageCounter> UsageCounters => Set<UsageCounter>();
+    public DbSet<InvoiceFeed> InvoicesFeed => Set<InvoiceFeed>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

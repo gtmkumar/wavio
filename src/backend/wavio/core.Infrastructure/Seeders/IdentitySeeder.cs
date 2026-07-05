@@ -101,6 +101,14 @@ public sealed class IdentitySeeder
 
         // wa-gateway-svc outbound send (issue #14).
         ("messages.send",        "messages",    "send",       "Send an outbound WhatsApp message", RiskLevel.Normal),
+
+        // wa-billing-svc cost & billing engine (issue #19, spec §4.7).
+        ("billing.rate_cards.read",     "billing", "read",   "View rate cards",              RiskLevel.Low),
+        ("billing.rate_cards.manage",   "billing", "manage", "Create/edit rate cards",        RiskLevel.Critical),
+        ("billing.costs.read",          "billing", "read",   "View cost estimates",           RiskLevel.Low),
+        ("billing.quotas.read",         "billing", "read",   "View tenant quota status",      RiskLevel.Low),
+        ("billing.quotas.check",        "billing", "check",  "Check quota at send time",      RiskLevel.Normal),
+        ("billing.reconciliation.read", "billing", "read",   "View ledger/invoice variance",  RiskLevel.Normal),
     ];
 
     private async Task<Dictionary<string, Permission>> SeedPermissionsAsync(CancellationToken ct)
@@ -217,11 +225,14 @@ public sealed class IdentitySeeder
             "users.set_password", "roles.list", "roles.manage", "permissions.list",
             "permissions.assign", "memberships.grant", "memberships.revoke", "widgets.manage",
             "templates.list", "templates.read", "templates.create", "templates.update",
-            "templates.submit", "templates.delete", "messages.send");
+            "templates.submit", "templates.delete", "messages.send",
+            "billing.rate_cards.read", "billing.costs.read", "billing.quotas.read",
+            "billing.quotas.check", "billing.reconciliation.read");
 
         // staff: read-only + the example feature + day-to-day messaging.
         Grant("staff", "users.list", "users.read", "roles.list", "permissions.list", "widgets.manage",
-            "templates.list", "templates.read", "messages.send");
+            "templates.list", "templates.read", "messages.send",
+            "billing.costs.read", "billing.quotas.read", "billing.quotas.check");
 
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Seeded role→permission grants.");

@@ -10,12 +10,19 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.4" />
         <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.4" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.4" />
+        <!-- MessageStatusConsumerService (BackgroundService/IHostedService). -->
+        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.4" />
+        <!-- Status-webhook consumer (issue #19): exchange "wavio.events" (same as issue #13's
+             producer), plus WabaPhoneNumberTenantResolver's raw ADO.NET admin-connection lookup. -->
+        <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
+        <PackageReference Include="Npgsql" Version="10.0.3" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\WaBilling.Application\WaBilling.Application.csproj" />
         <ProjectReference Include="..\wavio.Utilities\wavio.Utilities.csproj" />
         <ProjectReference Include="..\wavio.SharedDataModel\wavio.SharedDataModel.csproj" />
+        <ProjectReference Include="..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
     </ItemGroup>
 
 </Project>

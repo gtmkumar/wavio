@@ -42,6 +42,7 @@
     <Project Path="tests/WaAdmin.Tests/WaAdmin.Tests.csproj" />
     <Project Path="tests/WaIntel.Tests/WaIntel.Tests.csproj" />
     <Project Path="tests/WaGateway.Tests/WaGateway.Tests.csproj" />
+    <Project Path="tests/WaBilling.Tests/WaBilling.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/MetaGraphApiStub/MetaGraphApiStub.csproj" />

@@ -230,6 +230,12 @@ public static class MetaWebhookNormalizer
         bool? billable = null;
         string? pricingCategory = null;
         string? pricingModel = null;
+        // Named distinctly from the payment-handling block's own `amount`/`currency` locals above
+        // (different if-branch, but same enclosing method scope — CS0136).
+        decimal? pmpAmount = null;
+        string? pmpCurrency = null;
+        string? destinationMarket = null;
+        string? pricingRawJson = null;
         if (status.TryGetProperty("pricing", out var pricing))
         {
             if (pricing.TryGetProperty("billable", out var billableEl)
@@ -238,6 +244,33 @@ public static class MetaWebhookNormalizer
 
             pricingCategory = GetString(pricing, "category");
             pricingModel = GetString(pricing, "pricing_model");
+
+            // PMP fields (issue #19, ADR-002) — best-effort: no production PMP payload has been
+            // observed yet, same "no production payload observed" caveat as PaymentStatusV1 above.
+            // A nested amount object ({"amount": {"value": ..., "currency": ...}}) is tried first;
+            // flat "amount"/"currency" properties are accepted as a fallback shape. Absence of
+            // either just leaves Amount/Currency null — WaBilling's ledger already treats a
+            // missing amount as "not priced by Meta on this delivery", not an error.
+            if (pricing.TryGetProperty("amount", out var amountEl))
+            {
+                if (amountEl.ValueKind == JsonValueKind.Object)
+                {
+                    if (amountEl.TryGetProperty("value", out var valueEl)
+                        && valueEl.ValueKind == JsonValueKind.Number
+                        && valueEl.TryGetDecimal(out var nestedAmount))
+                        pmpAmount = nestedAmount;
+                    pmpCurrency = GetString(amountEl, "currency");
+                }
+                else if (amountEl.ValueKind == JsonValueKind.Number && amountEl.TryGetDecimal(out var flatAmount))
+                {
+                    pmpAmount = flatAmount;
+                }
+            }
+            pmpCurrency ??= GetString(pricing, "currency");
+            destinationMarket = GetString(pricing, "country") ?? GetString(pricing, "destination_market");
+
+            var rawText = pricing.GetRawText();
+            pricingRawJson = rawText.Length > 4000 ? rawText[..4000] : rawText;
         }
 
         var statusEvent = new MessageStatusV1
@@ -248,7 +281,11 @@ public static class MetaWebhookNormalizer
             ErrorCode = errorCode,
             Billable = billable,
             PricingCategory = pricingCategory,
-            PricingModel = pricingModel
+            PricingModel = pricingModel,
+            Amount = pmpAmount,
+            Currency = pmpCurrency,
+            DestinationMarket = destinationMarket,
+            PricingRawJson = pricingRawJson
         };
 
         // Dedupe per (wamid, status) — the same wamid legitimately progresses through

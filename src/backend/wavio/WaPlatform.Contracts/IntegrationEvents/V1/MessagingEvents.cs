@@ -72,6 +72,33 @@ public sealed record MessageStatusV1 : IntegrationEvent
 
     /// <summary>Pricing model reported by Meta (PMP going forward).</summary>
     public string? PricingModel { get; init; }
+
+    /// <summary>
+    /// Per-message price Meta reported on this status webhook (PMP), if present. Additive field
+    /// (issue #19) — the cost ledger (WaBilling) writes this verbatim; it never derives an amount
+    /// from its own rate cards (ADR-002 — rate cards are estimator-only). Null when Meta's payload
+    /// doesn't carry a price on this particular status update (e.g. a "sent"/"read" event with no
+    /// pricing object at all, or a pre-PMP CBP-era payload).
+    /// </summary>
+    public decimal? Amount { get; init; }
+
+    /// <summary>ISO 4217 currency code for <see cref="Amount"/>, when present.</summary>
+    public string? Currency { get; init; }
+
+    /// <summary>
+    /// Recipient's destination market/country as reported by Meta's pricing object, when present.
+    /// Additive field (issue #19). Null when Meta doesn't supply it on this webhook — the
+    /// estimator (pre-send) takes an explicit country instead of relying on this.
+    /// </summary>
+    public string? DestinationMarket { get; init; }
+
+    /// <summary>
+    /// The raw Meta status-webhook <c>pricing</c> sub-object, verbatim as JSON text. Additive
+    /// field (issue #19) — this is what <c>billing.message_costs.webhook_pricing</c> stores;
+    /// the typed fields above are a convenience projection of the same object, never the reverse.
+    /// Null when the webhook carried no pricing object.
+    /// </summary>
+    public string? PricingRawJson { get; init; }
 }
 
 /// <summary>
