@@ -1,0 +1,7 @@
+- [Repo/QA environment setup](environment.md) — Colima/Docker, dotnet, psql, uvx locations; bare postgres:16 gate repro; multi-agent shared-repo-dir worktree policy
+- [PR #45 review (issue #14 wa-gateway-svc send API, final Wave 1 gate), 2026-07-04](review-pr45-gateway-send.md) — verdict APPROVE; live-proved idempotency incl. untested concurrent race + crash-reclaim vs real Postgres; OutboxDispatcherService has zero unit coverage (EF InMemory can't do ExecuteUpdateAsync)
+- [PR #43 review (issue #15 wa-intel-svc session windows), 2026-07-03](review-pr43-session-windows.md) — verdict APPROVE; live cache-invalidation repro (29ms) via real listener class, not full HTTP/JWT; found parked-event replay doesn't actually redrive WaIntel — #18 input
+- [PR #44 review (issue #16 wa-admin-svc template lifecycle), 2026-07-03](review-pr44-template-lifecycle.md) — verdict APPROVE; proved two-step-save regression is currently untested; 2 live consumer-path repros incl. DLQ
+- [PR #41 review (issue #13 wa-ingest-svc webhooks), 2026-07-03](review-pr41-ingest-webhooks.md) — verdict APPROVE; live duplicate-wamid repro via RabbitMQ mgmt API; dedupe-race nit flagged for #18
+- [PR #38 review (issue #11 CI pipeline), 2026-07-03](review-pr38-ci-pipeline.md) — final verdict APPROVE; defect found+fixed same day (FK-audit silent-pass on psql failure)
+- [FK-audit gate design & fixed gap](fk-audit-gate-notes.md) — how db/tests/fk_audit.sh works, the process-substitution/set -e gap (fixed in 07e0d01), allowlist cross-check method
