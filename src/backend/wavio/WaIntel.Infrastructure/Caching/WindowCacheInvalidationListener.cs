@@ -34,7 +34,7 @@ public sealed partial class WindowCacheInvalidationListener : BackgroundService
         IConfiguration configuration, IMemoryCache cache, ILogger<WindowCacheInvalidationListener> logger)
     {
         _connectionString = configuration.GetConnectionString("Default")
-            ?? "Host=localhost;Port=5432;Database=waplatform;Username=app_user;Password=app_user";
+            ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
         _cache = cache;
         _logger = logger;
     }

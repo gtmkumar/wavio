@@ -50,6 +50,7 @@ public sealed class GetWindowStateHandler : IQueryHandler<GetWindowStateQuery, W
         }
 
         var windowsQuery = _db.ConversationWindows
+            .AsNoTracking()
             .Where(w => w.TenantId == query.TenantId && w.UserWaId == query.UserWaId);
 
         if (query.PhoneNumberId.HasValue)

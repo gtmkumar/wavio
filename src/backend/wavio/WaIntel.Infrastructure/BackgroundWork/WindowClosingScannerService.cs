@@ -50,9 +50,9 @@ public sealed partial class WindowClosingScannerService : BackgroundService
         ILogger<WindowClosingScannerService> logger)
     {
         _adminConnectionString = configuration.GetConnectionString("Admin")
-            ?? "Host=localhost;Port=5432;Database=waplatform;Username=postgres;Password=postgres";
+            ?? throw new InvalidOperationException("ConnectionStrings:Admin is not configured.");
         _appConnectionString = configuration.GetConnectionString("Default")
-            ?? "Host=localhost;Port=5432;Database=waplatform;Username=app_user;Password=app_user";
+            ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
         _publisher = publisher;
         _scopeFactory = scopeFactory;
 
