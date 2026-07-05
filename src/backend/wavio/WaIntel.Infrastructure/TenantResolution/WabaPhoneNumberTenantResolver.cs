@@ -28,7 +28,7 @@ public sealed partial class WabaPhoneNumberTenantResolver : ITenantResolver
     public WabaPhoneNumberTenantResolver(IConfiguration configuration, ILogger<WabaPhoneNumberTenantResolver> logger)
     {
         _adminConnectionString = configuration.GetConnectionString("Admin")
-            ?? "Host=localhost;Port=5432;Database=waplatform;Username=postgres;Password=postgres";
+            ?? throw new InvalidOperationException("ConnectionStrings:Admin is not configured.");
         _logger = logger;
     }
 
