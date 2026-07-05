@@ -1,5 +1,7 @@
 using WaIntel.Application.Common.Interfaces;
+using wavio.SharedDataModel.Entities.Quality;
 using wavio.SharedDataModel.Entities.Sessions;
+using wavio.SharedDataModel.Entities.Waba;
 using wavio.SharedDataModel.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,8 +9,10 @@ namespace WaIntel.Infrastructure.Persistence;
 
 /// <summary>
 /// Adapts the shared <see cref="WavioDbContext"/> to <see cref="IWaIntelDbContext"/>, exposing
-/// only the <c>sessions</c> schema entity sets this service owns. Same pattern as
-/// core.Infrastructure's <c>CoreDbContext</c> / WaIngest.Infrastructure's <c>WaIngestDbContext</c>.
+/// the <c>sessions</c> and <c>quality</c> schema entity sets this service owns, plus
+/// <c>waba.phone_numbers</c> (shared with WaGateway — see the interface's doc comment). Same
+/// pattern as core.Infrastructure's <c>CoreDbContext</c> / WaIngest.Infrastructure's
+/// <c>WaIngestDbContext</c>.
 /// </summary>
 public sealed class WaIntelDbContext : IWaIntelDbContext
 {
@@ -18,6 +22,12 @@ public sealed class WaIntelDbContext : IWaIntelDbContext
 
     public DbSet<ConversationWindow> ConversationWindows => _db.ConversationWindows;
     public DbSet<WindowEvent> WindowEvents => _db.WindowEvents;
+    public DbSet<WabaPhoneNumber> WabaPhoneNumbers => _db.WabaPhoneNumbers;
+
+    public DbSet<NumberQualityEvent> NumberQualityEvents => _db.NumberQualityEvents;
+    public DbSet<MessagingTierEvent> MessagingTierEvents => _db.MessagingTierEvents;
+    public DbSet<GuardianIncident> GuardianIncidents => _db.GuardianIncidents;
+    public DbSet<HealthSnapshot> HealthSnapshots => _db.HealthSnapshots;
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken) =>
         _db.SaveChangesAsync(cancellationToken);

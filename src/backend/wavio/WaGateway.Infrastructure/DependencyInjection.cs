@@ -35,6 +35,7 @@ public static class DependencyInjection
 
         services.AddSingleton<TokenBucketRateLimiter>();
         services.AddSingleton<MessagingTierGate>();
+        services.AddSingleton<GuardianThrottleGate>();
 
         services.Configure<MetaGraphOptions>(configuration.GetSection(MetaGraphOptions.SectionName));
 

@@ -1,5 +1,7 @@
 using WaIntel.Application.Common.Interfaces;
+using wavio.SharedDataModel.Entities.Quality;
 using wavio.SharedDataModel.Entities.Sessions;
+using wavio.SharedDataModel.Entities.Waba;
 using Microsoft.EntityFrameworkCore;
 
 namespace WaIntel.Tests;
@@ -18,6 +20,12 @@ public sealed class InMemoryWaIntelDbContext : DbContext, IWaIntelDbContext
 
     public DbSet<ConversationWindow> ConversationWindows => Set<ConversationWindow>();
     public DbSet<WindowEvent> WindowEvents => Set<WindowEvent>();
+    public DbSet<WabaPhoneNumber> WabaPhoneNumbers => Set<WabaPhoneNumber>();
+
+    public DbSet<NumberQualityEvent> NumberQualityEvents => Set<NumberQualityEvent>();
+    public DbSet<MessagingTierEvent> MessagingTierEvents => Set<MessagingTierEvent>();
+    public DbSet<GuardianIncident> GuardianIncidents => Set<GuardianIncident>();
+    public DbSet<HealthSnapshot> HealthSnapshots => Set<HealthSnapshot>();
 
     public Task NotifyAsync(string channel, string payload, CancellationToken cancellationToken)
     {

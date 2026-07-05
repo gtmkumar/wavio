@@ -109,6 +109,11 @@ public sealed class IdentitySeeder
         ("billing.quotas.read",         "billing", "read",   "View tenant quota status",      RiskLevel.Low),
         ("billing.quotas.check",        "billing", "check",  "Check quota at send time",      RiskLevel.Normal),
         ("billing.reconciliation.read", "billing", "read",   "View ledger/invoice variance",  RiskLevel.Normal),
+
+        // wa-intel-svc Quality Rating Guardian (issue #20, spec §4.6).
+        ("quality.health.read",       "quality", "read",     "View weekly per-number health report", RiskLevel.Low),
+        ("quality.tier_advisor.read", "quality", "read",     "View tier-growth advisor",              RiskLevel.Low),
+        ("quality.simulate",          "quality", "simulate", "Inject a simulated quality/tier event (non-prod only)", RiskLevel.Critical),
     ];
 
     private async Task<Dictionary<string, Permission>> SeedPermissionsAsync(CancellationToken ct)
@@ -227,12 +232,17 @@ public sealed class IdentitySeeder
             "templates.list", "templates.read", "templates.create", "templates.update",
             "templates.submit", "templates.delete", "messages.send",
             "billing.rate_cards.read", "billing.costs.read", "billing.quotas.read",
-            "billing.quotas.check", "billing.reconciliation.read");
+            "billing.quotas.check", "billing.reconciliation.read",
+            // quality.simulate intentionally NOT granted here — platform_admin only (its blanket
+            // grant above already covers it), matching the risk level (Critical: it writes
+            // incidents/events even though it's non-prod-gated).
+            "quality.health.read", "quality.tier_advisor.read");
 
         // staff: read-only + the example feature + day-to-day messaging.
         Grant("staff", "users.list", "users.read", "roles.list", "permissions.list", "widgets.manage",
             "templates.list", "templates.read", "messages.send",
-            "billing.costs.read", "billing.quotas.read", "billing.quotas.check");
+            "billing.costs.read", "billing.quotas.read", "billing.quotas.check",
+            "quality.health.read", "quality.tier_advisor.read");
 
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Seeded role→permission grants.");

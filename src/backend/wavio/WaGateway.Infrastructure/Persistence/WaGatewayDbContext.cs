@@ -1,5 +1,6 @@
 using WaGateway.Application.Common.Interfaces;
 using wavio.SharedDataModel.Entities.Messaging;
+using wavio.SharedDataModel.Entities.Quality;
 using wavio.SharedDataModel.Entities.Waba;
 using wavio.SharedDataModel.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,7 @@ public sealed class WaGatewayDbContext : IWaGatewayDbContext
     public DbSet<OutboundMessage> OutboundMessages => _db.OutboundMessages;
     public DbSet<OutboundOutboxEntry> OutboundOutboxEntries => _db.OutboundOutboxEntries;
     public DbSet<WabaPhoneNumber> WabaPhoneNumbers => _db.WabaPhoneNumbers;
+    public DbSet<GuardianIncident> GuardianIncidents => _db.GuardianIncidents;
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken) =>
         _db.SaveChangesAsync(cancellationToken);

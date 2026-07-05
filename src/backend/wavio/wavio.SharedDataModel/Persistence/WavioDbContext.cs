@@ -3,6 +3,7 @@ using wavio.SharedDataModel.Entities.IdentityAccess;
 using wavio.SharedDataModel.Entities.Ingest;
 using wavio.SharedDataModel.Entities.Kernel;
 using wavio.SharedDataModel.Entities.Messaging;
+using wavio.SharedDataModel.Entities.Quality;
 using wavio.SharedDataModel.Entities.Sessions;
 using wavio.SharedDataModel.Entities.TenancyOrg;
 using wavio.SharedDataModel.Entities.Templates;
@@ -81,6 +82,12 @@ public class WavioDbContext : DbContext
     public DbSet<TenantQuota> TenantQuotas => Set<TenantQuota>();
     public DbSet<UsageCounter> UsageCounters => Set<UsageCounter>();
     public DbSet<InvoiceFeed> InvoicesFeed => Set<InvoiceFeed>();
+
+    // quality (issue #20: Quality Rating Guardian — quality/tier ingestion, auto-throttle, health reports)
+    public DbSet<NumberQualityEvent> NumberQualityEvents => Set<NumberQualityEvent>();
+    public DbSet<MessagingTierEvent> MessagingTierEvents => Set<MessagingTierEvent>();
+    public DbSet<GuardianIncident> GuardianIncidents => Set<GuardianIncident>();
+    public DbSet<HealthSnapshot> HealthSnapshots => Set<HealthSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -32,6 +32,11 @@ public static class DependencyInjection
         services.AddHostedService<WindowCacheInvalidationListener>();
         services.AddHostedService<WindowClosingScannerService>();
 
+        // Quality Rating Guardian (issue #20, spec §4.6).
+        services.AddHostedService<QualityChangedConsumerService>();
+        services.AddHostedService<TierChangedConsumerService>();
+        services.AddHostedService<HealthSnapshotRollupService>();
+
         return services;
     }
 }

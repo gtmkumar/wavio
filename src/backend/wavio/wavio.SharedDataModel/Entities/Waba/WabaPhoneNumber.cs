@@ -26,6 +26,14 @@ public class WabaPhoneNumber
     /// rate-card lookups (marketing never uses a tier — spec §4.7, no volume discounts).</summary>
     public string? MessagingTier { get; set; }
 
+    /// <summary>Meta's current quality rating for this number — GREEN/YELLOW/RED/UNKNOWN
+    /// (uppercase; db/migrations/V002's CHECK constraint, note this is a DIFFERENT casing than
+    /// quality.number_quality_events.new_rating, which is lowercase — see
+    /// WaIntel.Application.Quality.Logic.QualityCodes for the two-way mapping). Added by issue #20
+    /// (Quality Rating Guardian, spec §4.6) — the column already existed since V002 but was unused
+    /// until now.</summary>
+    public string? QualityRating { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public int Version { get; set; }

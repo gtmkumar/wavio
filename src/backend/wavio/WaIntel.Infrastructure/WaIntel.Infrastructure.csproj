@@ -30,4 +30,9 @@
         <ProjectReference Include="..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- Exposes HealthSnapshotRollupService.ComputeMostRecentCompletedWeek to the unit tests. -->
+        <InternalsVisibleTo Include="WaIntel.Tests" />
+    </ItemGroup>
+
 </Project>

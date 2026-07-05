@@ -16,7 +16,16 @@ public sealed class HttpContextCurrentUser : ICurrentUser
 
     public Guid? UserId => ParseGuid(ClaimTypes.NameIdentifier);
     public string? UserType => Claim("user_type");
-    public string? Email => Claim("email");
+    // JwtTokenService mints the literal "email" claim (JwtRegisteredClaimNames.Email), but
+    // JwtSecurityTokenHandler's DEFAULT inbound claim map (MapInboundClaims=true, the default,
+    // not overridden by any service's AddJwtBearer call) silently rewrites well-known JWT claim
+    // names to legacy XML-namespace URIs on the way in — "email" becomes ClaimTypes.Email. Found
+    // live (issue #20 acceptance verification): step-up ("sensitive_action" OTP re-verification)
+    // always failed with "No email on file to verify against." for every JWT-authenticated caller,
+    // because this used to look up only the literal "email" name. Check both forms rather than
+    // disabling MapInboundClaims globally (that would break ClaimTypes.NameIdentifier -> UserId
+    // above, which relies on the SAME default mapping for "sub").
+    public string? Email => Claim(ClaimTypes.Email) ?? Claim("email");
     public string? Phone => Claim("phone");
     public Guid? TenantId => ParseGuid("tenant_id");
     public string? ScopeType => Claim("scope_type");

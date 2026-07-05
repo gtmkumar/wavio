@@ -1,4 +1,6 @@
+using wavio.SharedDataModel.Entities.Quality;
 using wavio.SharedDataModel.Entities.Sessions;
+using wavio.SharedDataModel.Entities.Waba;
 using Microsoft.EntityFrameworkCore;
 
 namespace WaIntel.Application.Common.Interfaces;
@@ -9,11 +11,23 @@ namespace WaIntel.Application.Common.Interfaces;
 /// WaIngest.Application's <c>IWaIngestDbContext</c>). Backed by the shared
 /// <c>WavioDbContext</c> via an adapter in WaIntel.Infrastructure. Tenant-scoped (RLS) — every
 /// call runs under whatever <c>ICurrentTenant</c> the request/consumer scope resolved.
+///
+/// <see cref="WabaPhoneNumbers"/> (issue #20) is exposed here the same way WaGateway's
+/// <c>IWaGatewayDbContext</c> already exposes it — both bounded contexts read/update the same
+/// shared <c>waba.phone_numbers</c> table for the columns they each own use-cases for
+/// (WaGateway: dispatch; WaIntel/Guardian: current quality rating + messaging tier).
 /// </summary>
 public interface IWaIntelDbContext
 {
     DbSet<ConversationWindow> ConversationWindows { get; }
     DbSet<WindowEvent> WindowEvents { get; }
+    DbSet<WabaPhoneNumber> WabaPhoneNumbers { get; }
+
+    // quality (issue #20: Quality Rating Guardian, spec §4.6)
+    DbSet<NumberQualityEvent> NumberQualityEvents { get; }
+    DbSet<MessagingTierEvent> MessagingTierEvents { get; }
+    DbSet<GuardianIncident> GuardianIncidents { get; }
+    DbSet<HealthSnapshot> HealthSnapshots { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 

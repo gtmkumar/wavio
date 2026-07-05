@@ -19,6 +19,7 @@ public sealed class WabaPhoneNumberConfiguration : IEntityTypeConfiguration<Waba
         builder.Property(e => e.DisplayPhoneNumber).HasColumnName("display_phone_number").HasMaxLength(20).IsRequired();
         builder.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).IsRequired();
         builder.Property(e => e.MessagingTier).HasColumnName("messaging_tier").HasMaxLength(20);
+        builder.Property(e => e.QualityRating).HasColumnName("quality_rating").HasMaxLength(10);
 
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();

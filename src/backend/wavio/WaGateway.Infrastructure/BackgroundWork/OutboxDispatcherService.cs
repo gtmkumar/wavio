@@ -1,6 +1,7 @@
 using System.Text.Json;
 using WaGateway.Application.Common.Interfaces;
 using WaGateway.Application.Messages.Dtos;
+using WaGateway.Application.Messages.Logic;
 using WaGateway.Infrastructure.Graph;
 using WaGateway.Infrastructure.Persistence;
 using WaGateway.Infrastructure.RateLimiting;
@@ -58,6 +59,7 @@ public sealed partial class OutboxDispatcherService : BackgroundService
     private readonly IMetaGraphMessageClient _graphClient;
     private readonly TokenBucketRateLimiter _tokenBucket;
     private readonly MessagingTierGate _tierGate;
+    private readonly GuardianThrottleGate _guardianGate;
     private readonly MetaGraphOptions _graphOptions;
     private readonly TimeSpan _pollInterval;
     private readonly TimeSpan _staleLockTimeout;
@@ -72,6 +74,7 @@ public sealed partial class OutboxDispatcherService : BackgroundService
         IMetaGraphMessageClient graphClient,
         TokenBucketRateLimiter tokenBucket,
         MessagingTierGate tierGate,
+        GuardianThrottleGate guardianGate,
         IOptions<MetaGraphOptions> graphOptions,
         IConfiguration configuration,
         ILogger<OutboxDispatcherService> logger)
@@ -80,6 +83,7 @@ public sealed partial class OutboxDispatcherService : BackgroundService
         _graphClient = graphClient;
         _tokenBucket = tokenBucket;
         _tierGate = tierGate;
+        _guardianGate = guardianGate;
         _graphOptions = graphOptions.Value;
         _pollInterval = TimeSpan.FromMilliseconds(configuration.GetValue("Outbox:PollIntervalMs", 1000));
         _staleLockTimeout = TimeSpan.FromSeconds(configuration.GetValue("Outbox:StaleLockSeconds", 30));
@@ -203,6 +207,36 @@ public sealed partial class OutboxDispatcherService : BackgroundService
                 await PublishFailureAsync(scope, entry, message, entry.PhoneNumberId.ToString(), "UNRESOLVED_PHONE_NUMBER", "No matching waba.phone_numbers row.", ct);
             }
             return;
+        }
+
+        // Guardian auto-throttle (issue #20, spec §4.6) — checked directly against
+        // quality.guardian_incidents on this same tenant-scoped scope (see IWaGatewayDbContext's
+        // doc comment for why this reads the DB directly rather than a pg_notify-backed cache).
+        // Only ever applies to marketing sends; utility/authentication/service always proceed.
+        if (IsMarketingTemplate(message))
+        {
+            var throttleAction = await db.GuardianIncidents
+                .AsNoTracking()
+                .Where(i => i.PhoneNumberId == entry.PhoneNumberId && i.Status != "resolved")
+                .OrderByDescending(i => i.OpenedAt)
+                .Select(i => i.ThrottleAction)
+                .FirstOrDefaultAsync(ct);
+
+            if (GuardianThrottleRules.IsFrozen(throttleAction))
+            {
+                // Not a failure — a RED-quality freeze is meant to be temporary (spec §4.6:
+                // "recovery to GREEN -> resolve open incidents"). Release for retry rather than
+                // dead-letter, same "throttling is not a failure" treatment as the token bucket
+                // below; a prolonged freeze still eventually dead-letters via MaxAttempts exhaustion.
+                await FencedReleaseForRetryAsync(db, entry.Id, TimeSpan.FromMinutes(1), ct);
+                return;
+            }
+
+            if (GuardianThrottleRules.IsHalved(throttleAction) && !_guardianGate.TryAllowHalvedSend(entry.PhoneNumberId))
+            {
+                await FencedReleaseForRetryAsync(db, entry.Id, TimeSpan.FromSeconds(2), ct);
+                return;
+            }
         }
 
         if (!_tokenBucket.TryConsume(entry.PhoneNumberId, _graphOptions.DefaultThroughputPerSecond))
