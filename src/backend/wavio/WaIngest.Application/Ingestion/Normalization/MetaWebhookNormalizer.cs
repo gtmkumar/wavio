@@ -168,7 +168,10 @@ public static class MetaWebhookNormalizer
             PhoneNumberId = phoneNumberId,
             WabaId = wabaId,
             MessageType = type,
-            SentAt = sentAt ?? DateTimeOffset.UtcNow
+            SentAt = sentAt ?? DateTimeOffset.UtcNow,
+            // Additive field (issue #21) — only plain-text bodies are decoded; see the
+            // contract's own doc comment for why button/list/interactive replies are excluded.
+            Text = type == "text" ? GetString(message, "text", "body") : null,
         };
 
         results.Add(new NormalizedWebhookEvent(wamid, MessageReceivedV1.Name, evt));

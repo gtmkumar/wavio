@@ -47,6 +47,43 @@ public class MetaWebhookNormalizerTests
         Assert.Equal("phone-1", evt.PhoneNumberId);
         Assert.Equal("waba-123", evt.WabaId);
         Assert.Equal("text", evt.MessageType);
+        // Additive field (issue #21) — the STOP-keyword listener needs the body text.
+        Assert.Equal("hello", evt.Text);
+    }
+
+    [Fact]
+    public void Normalize_InboundNonTextMessage_LeavesTextNull()
+    {
+        // Text is deliberately only decoded for type=text (issue #21's own doc comment on
+        // MessageReceivedV1.Text) — an image message must not surface a caption or any other
+        // field as Text.
+        var root = Parse("""
+        {
+          "object": "whatsapp_business_account",
+          "entry": [{
+            "id": "waba-123",
+            "changes": [{
+              "field": "messages",
+              "value": {
+                "metadata": { "phone_number_id": "phone-1" },
+                "messages": [{
+                  "id": "wamid.IMG",
+                  "from": "919812345678",
+                  "type": "image",
+                  "timestamp": "1700000000",
+                  "image": { "id": "media-1", "caption": "look at this" }
+                }]
+              }
+            }]
+          }]
+        }
+        """);
+
+        var results = MetaWebhookNormalizer.Normalize(root, out var skipped);
+
+        Assert.Empty(skipped);
+        var evt = Assert.IsType<MessageReceivedV1>(Assert.Single(results).Event);
+        Assert.Null(evt.Text);
     }
 
     [Fact]

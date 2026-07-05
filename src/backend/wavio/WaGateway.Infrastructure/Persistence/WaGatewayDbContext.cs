@@ -21,6 +21,7 @@ public sealed class WaGatewayDbContext : IWaGatewayDbContext
     public DbSet<OutboundOutboxEntry> OutboundOutboxEntries => _db.OutboundOutboxEntries;
     public DbSet<WabaPhoneNumber> WabaPhoneNumbers => _db.WabaPhoneNumbers;
     public DbSet<GuardianIncident> GuardianIncidents => _db.GuardianIncidents;
+    public DbSet<SuppressionListEntry> SuppressionListEntries => _db.SuppressionListEntries;
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken) =>
         _db.SaveChangesAsync(cancellationToken);

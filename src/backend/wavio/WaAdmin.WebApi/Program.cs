@@ -137,6 +137,26 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// ── Retention-policy platform defaults (issue #21, spec §4.10) ─────────────────
+// Baseline reference data, not sensitive bootstrap credentials — unlike IdentitySeeder this
+// deliberately runs in EVERY environment (not Development-only), so every tenant always has a
+// platform default to fall back on. Skipped only when no Admin connection string is configured,
+// same "boot even with no database" posture as IdentitySeeder's own guard.
+var adminConnStr = app.Configuration.GetConnectionString("Admin");
+if (string.IsNullOrWhiteSpace(adminConnStr))
+{
+    app.Logger.LogWarning(
+        "RetentionPolicySeeder skipped: no ConnectionStrings:Admin configured.");
+}
+else
+{
+    using var seederScope = app.Services.CreateScope();
+    var retentionSeeder = new WaAdmin.Infrastructure.Seeders.RetentionPolicySeeder(
+        adminConnStr,
+        seederScope.ServiceProvider.GetRequiredService<ILogger<WaAdmin.Infrastructure.Seeders.RetentionPolicySeeder>>());
+    await retentionSeeder.SeedAsync(CancellationToken.None);
+}
+
 // ── Forwarded headers (prod/staging, behind the gateway/edge proxy) ───────────
 app.UseForwardedHeadersIfEnabled();
 

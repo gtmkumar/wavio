@@ -1,8 +1,10 @@
 using WaAdmin.Application.Common.Interfaces;
+using WaAdmin.Infrastructure.BackgroundWork;
 using WaAdmin.Infrastructure.Graph;
 using WaAdmin.Infrastructure.Messaging;
 using WaAdmin.Infrastructure.Persistence;
 using WaAdmin.Infrastructure.Templates;
+using WaAdmin.Infrastructure.TenantResolution;
 using wavio.SharedDataModel.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,6 +59,15 @@ public static class DependencyInjection
         // Background consumer: wa.template.status_changed.v1 / wa.template.category_changed.v1
         // from the wavio.events exchange (issue #16 Tasks 3-4).
         services.AddHostedService<TemplateEventsConsumerBackgroundService>();
+
+        // Consent ledger (issue #21, spec §4.10): STOP-keyword listener needs its own tenant
+        // resolver (same "each service owns its own copy" convention as WaIntel/WaBilling,
+        // issue #15) plus the erasure/export background worker. Both are wired unconditionally —
+        // RabbitMq/DB connection strings are validated the same way the template-events consumer's
+        // already are (WaAdmin.WebApi/Program.cs's boot-time guard).
+        services.AddScoped<ITenantResolver, WabaPhoneNumberTenantResolver>();
+        services.AddHostedService<StopKeywordConsumerService>();
+        services.AddHostedService<ErasureRequestProcessorService>();
 
         return services;
     }

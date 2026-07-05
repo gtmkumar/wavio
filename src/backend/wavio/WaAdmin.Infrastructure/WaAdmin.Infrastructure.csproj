@@ -30,4 +30,8 @@
         <ProjectReference Include="..\WaPlatform.Contracts\WaPlatform.Contracts.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="WaAdmin.Tests" />
+    </ItemGroup>
+
 </Project>

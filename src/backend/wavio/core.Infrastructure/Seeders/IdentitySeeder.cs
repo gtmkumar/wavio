@@ -114,6 +114,14 @@ public sealed class IdentitySeeder
         ("quality.health.read",       "quality", "read",     "View weekly per-number health report", RiskLevel.Low),
         ("quality.tier_advisor.read", "quality", "read",     "View tier-growth advisor",              RiskLevel.Low),
         ("quality.simulate",          "quality", "simulate", "Inject a simulated quality/tier event (non-prod only)", RiskLevel.Critical),
+
+        // wa-admin-svc Consent ledger — DPDP Act 2023 (issue #21, spec §4.10).
+        ("consent.write",             "consent", "write",   "Record opt-in evidence / manual opt-out", RiskLevel.Normal),
+        ("consent.read",              "consent", "read",    "View a wa_id's current consent state",    RiskLevel.Low),
+        ("consent.requests.manage",   "consent", "manage",  "Raise a DPDP erasure/export request",     RiskLevel.Critical),
+        ("consent.requests.read",     "consent", "read",    "View an erasure/export request's status", RiskLevel.Normal),
+        ("consent.retention.read",    "consent", "read",    "View retention policies",                 RiskLevel.Low),
+        ("consent.retention.manage",  "consent", "manage",  "Set this tenant's retention-policy override", RiskLevel.Critical),
     ];
 
     private async Task<Dictionary<string, Permission>> SeedPermissionsAsync(CancellationToken ct)
@@ -236,13 +244,19 @@ public sealed class IdentitySeeder
             // quality.simulate intentionally NOT granted here — platform_admin only (its blanket
             // grant above already covers it), matching the risk level (Critical: it writes
             // incidents/events even though it's non-prod-gated).
-            "quality.health.read", "quality.tier_advisor.read");
+            "quality.health.read", "quality.tier_advisor.read",
+            "consent.write", "consent.read", "consent.requests.manage", "consent.requests.read",
+            "consent.retention.read", "consent.retention.manage");
 
         // staff: read-only + the example feature + day-to-day messaging.
         Grant("staff", "users.list", "users.read", "roles.list", "permissions.list", "widgets.manage",
             "templates.list", "templates.read", "messages.send",
             "billing.costs.read", "billing.quotas.read", "billing.quotas.check",
-            "quality.health.read", "quality.tier_advisor.read");
+            "quality.health.read", "quality.tier_advisor.read",
+            // Day-to-day consent capture (opt-in/opt-out) is a front-line staff action; raising a
+            // DPDP erasure/export request or changing retention policy is not (Critical risk —
+            // tenant_admin only, per the grant above).
+            "consent.write", "consent.read", "consent.requests.read");
 
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Seeded role→permission grants.");

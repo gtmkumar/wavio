@@ -192,6 +192,89 @@ public class SendMessageHandlerTests
     }
 
     [Fact]
+    public async Task A_marketing_template_send_to_a_suppressed_recipient_is_rejected_and_writes_no_outbox_entry()
+    {
+        // Deny-wins pre-dispatch suppression gate (issue #21, spec §4.10).
+        await using var db = InMemoryWaGatewayDbContext.Create(nameof(A_marketing_template_send_to_a_suppressed_recipient_is_rejected_and_writes_no_outbox_entry));
+        SeedPhoneNumber(db, TenantId, PhoneNumberId);
+        db.SuppressionListEntries.Add(new wavio.SharedDataModel.Entities.Messaging.SuppressionListEntry
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TenantId,
+            WaId = ToWaId,
+            Reason = "stop_keyword",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync(CancellationToken.None);
+        var handler = new SendMessageHandler(db, WindowStateClient(csOpen: true).Object);
+
+        var result = await handler.HandleAsync(
+            new SendMessageCommand(TenantId, PhoneNumberId, ToWaId, "template",
+                """{"name":"promo","language":"en_US","category":"marketing"}""", "key-suppressed"),
+            CancellationToken.None);
+
+        Assert.Equal("rejected", result.Status);
+        Assert.Equal("SUPPRESSED", result.ErrorCode);
+        Assert.Empty(db.OutboundOutboxEntries);
+    }
+
+    [Fact]
+    public async Task A_marketing_template_send_to_a_suppressed_recipient_with_an_expired_suppression_is_accepted()
+    {
+        await using var db = InMemoryWaGatewayDbContext.Create(nameof(A_marketing_template_send_to_a_suppressed_recipient_with_an_expired_suppression_is_accepted));
+        SeedPhoneNumber(db, TenantId, PhoneNumberId);
+        db.SuppressionListEntries.Add(new wavio.SharedDataModel.Entities.Messaging.SuppressionListEntry
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TenantId,
+            WaId = ToWaId,
+            Reason = "manual",
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(-1), // expired
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync(CancellationToken.None);
+        var handler = new SendMessageHandler(db, WindowStateClient(csOpen: true).Object);
+
+        var result = await handler.HandleAsync(
+            new SendMessageCommand(TenantId, PhoneNumberId, ToWaId, "template",
+                """{"name":"promo","language":"en_US","category":"marketing"}""", "key-expired-suppression"),
+            CancellationToken.None);
+
+        Assert.Equal("accepted", result.Status);
+        Assert.Single(db.OutboundOutboxEntries);
+    }
+
+    [Fact]
+    public async Task A_suppressed_recipient_still_receives_utility_template_sends()
+    {
+        // Suppression means "no MARKETING" specifically (spec §4.10) — utility/authentication/
+        // service sends are never blocked by it.
+        await using var db = InMemoryWaGatewayDbContext.Create(nameof(A_suppressed_recipient_still_receives_utility_template_sends));
+        SeedPhoneNumber(db, TenantId, PhoneNumberId);
+        db.SuppressionListEntries.Add(new wavio.SharedDataModel.Entities.Messaging.SuppressionListEntry
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TenantId,
+            WaId = ToWaId,
+            Reason = "stop_keyword",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync(CancellationToken.None);
+        var handler = new SendMessageHandler(db, WindowStateClient(csOpen: true).Object);
+
+        var result = await handler.HandleAsync(
+            new SendMessageCommand(TenantId, PhoneNumberId, ToWaId, "template",
+                """{"name":"otp","language":"en_US","category":"utility"}""", "key-utility"),
+            CancellationToken.None);
+
+        Assert.Equal("accepted", result.Status);
+        Assert.Single(db.OutboundOutboxEntries);
+    }
+
+    [Fact]
     public async Task A_send_to_another_tenants_phone_number_id_throws_KeyNotFoundException()
     {
         // Regression test (security review, PR #45, S3): the row exists, but not for THIS

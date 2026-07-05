@@ -43,6 +43,17 @@ public sealed record MessageReceivedV1 : IntegrationEvent
     /// another agent) and what populating it requires.
     /// </summary>
     public string? Referral { get; init; }
+
+    /// <summary>
+    /// The message body text — PII, do not log verbatim. Additive field (issue #21: the
+    /// STOP-keyword listener needs to inspect inbound text for opt-out phrases, and no prior
+    /// consumer of this event ever needed the body). Populated only when
+    /// <see cref="MessageType"/> is <c>text</c> (Meta's <c>text.body</c> field); null for every
+    /// other message type — this is deliberately narrow rather than also decoding button/list
+    /// reply titles or interactive payloads, since spec §4.10's STOP vocabulary is plain-text
+    /// keywords, not a structured reply.
+    /// </summary>
+    public string? Text { get; init; }
 }
 
 /// <summary>

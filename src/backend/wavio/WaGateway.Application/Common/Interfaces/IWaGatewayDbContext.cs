@@ -31,5 +31,15 @@ public interface IWaGatewayDbContext
     DbSet<WabaPhoneNumber> WabaPhoneNumbers { get; }
     DbSet<GuardianIncident> GuardianIncidents { get; }
 
+    /// <summary>
+    /// messaging.suppression_list (issue #21, spec §4.10) — read here at accept time
+    /// (<c>SendMessageHandler</c>), same "synchronous pre-dispatch gate" placement as the
+    /// window-closed check, NOT the async outbox dispatcher: a suppressed recipient should get an
+    /// immediate rejection in the HTTP response, not an async dead-letter minutes later. A row
+    /// here means "no marketing" specifically (see <c>SuppressionListEntry</c>'s doc comment) —
+    /// utility/authentication/service sends are never blocked by it.
+    /// </summary>
+    DbSet<SuppressionListEntry> SuppressionListEntries { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

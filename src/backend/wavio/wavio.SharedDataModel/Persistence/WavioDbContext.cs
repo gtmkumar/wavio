@@ -1,4 +1,5 @@
 using wavio.SharedDataModel.Entities.Billing;
+using wavio.SharedDataModel.Entities.Consent;
 using wavio.SharedDataModel.Entities.IdentityAccess;
 using wavio.SharedDataModel.Entities.Ingest;
 using wavio.SharedDataModel.Entities.Kernel;
@@ -88,6 +89,15 @@ public class WavioDbContext : DbContext
     public DbSet<MessagingTierEvent> MessagingTierEvents => Set<MessagingTierEvent>();
     public DbSet<GuardianIncident> GuardianIncidents => Set<GuardianIncident>();
     public DbSet<HealthSnapshot> HealthSnapshots => Set<HealthSnapshot>();
+
+    // consent (issue #21: DPDP opt-in evidence, STOP listener, erasure/export, retention policies)
+    public DbSet<OptInEvent> OptInEvents => Set<OptInEvent>();
+    public DbSet<OptOutEvent> OptOutEvents => Set<OptOutEvent>();
+    public DbSet<ErasureRequest> ErasureRequests => Set<ErasureRequest>();
+    public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
+
+    // messaging.suppression_list (V007) went unmapped until issue #21 gave it a writer/reader.
+    public DbSet<SuppressionListEntry> SuppressionListEntries => Set<SuppressionListEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

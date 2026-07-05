@@ -1,4 +1,6 @@
 using WaAdmin.Application.Common.Interfaces;
+using wavio.SharedDataModel.Entities.Consent;
+using wavio.SharedDataModel.Entities.Messaging;
 using wavio.SharedDataModel.Entities.Templates;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +21,12 @@ public sealed class InMemoryWaAdminDbContext : DbContext, IWaAdminDbContext
     public DbSet<TemplateCategoryChange> TemplateCategoryChanges => Set<TemplateCategoryChange>();
     public DbSet<TemplateLintResult> TemplateLintResults => Set<TemplateLintResult>();
 
+    public DbSet<OptInEvent> OptInEvents => Set<OptInEvent>();
+    public DbSet<OptOutEvent> OptOutEvents => Set<OptOutEvent>();
+    public DbSet<ErasureRequest> ErasureRequests => Set<ErasureRequest>();
+    public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
+    public DbSet<SuppressionListEntry> SuppressionListEntries => Set<SuppressionListEntry>();
+
     /// <summary>Test-configurable stand-in for the real raw-SQL lookup against
     /// waba.business_accounts (the in-memory provider doesn't support Database.SqlQuery) —
     /// populate directly in each test that needs a business account to resolve.</summary>
@@ -34,6 +42,11 @@ public sealed class InMemoryWaAdminDbContext : DbContext, IWaAdminDbContext
         modelBuilder.Entity<TemplateStatusEvent>().HasKey(e => e.Id);
         modelBuilder.Entity<TemplateCategoryChange>().HasKey(e => e.Id);
         modelBuilder.Entity<TemplateLintResult>().HasKey(e => e.Id);
+        modelBuilder.Entity<OptInEvent>().HasKey(e => e.Id);
+        modelBuilder.Entity<OptOutEvent>().HasKey(e => e.Id);
+        modelBuilder.Entity<ErasureRequest>().HasKey(e => e.Id);
+        modelBuilder.Entity<RetentionPolicy>().HasKey(e => e.Id);
+        modelBuilder.Entity<SuppressionListEntry>().HasKey(e => e.Id);
     }
 
     public static InMemoryWaAdminDbContext Create(string databaseName) =>

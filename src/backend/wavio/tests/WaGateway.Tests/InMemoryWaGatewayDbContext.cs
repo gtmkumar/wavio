@@ -21,6 +21,7 @@ public sealed class InMemoryWaGatewayDbContext : DbContext, IWaGatewayDbContext
     public DbSet<OutboundOutboxEntry> OutboundOutboxEntries => Set<OutboundOutboxEntry>();
     public DbSet<WabaPhoneNumber> WabaPhoneNumbers => Set<WabaPhoneNumber>();
     public DbSet<GuardianIncident> GuardianIncidents => Set<GuardianIncident>();
+    public DbSet<SuppressionListEntry> SuppressionListEntries => Set<SuppressionListEntry>();
 
     public static InMemoryWaGatewayDbContext Create(string databaseName) =>
         new(new DbContextOptionsBuilder<InMemoryWaGatewayDbContext>()

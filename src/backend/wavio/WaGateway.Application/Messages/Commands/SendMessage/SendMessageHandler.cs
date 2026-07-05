@@ -71,6 +71,18 @@ public sealed class SendMessageHandler : ICommandHandler<SendMessageCommand, Sen
             ? JsonSerializer.Deserialize<TemplatePayload>(command.PayloadJson, JsonOptions)?.Category
             : null;
 
+        // Suppression pre-dispatch gate (issue #21, spec §4.10: "suppression list enforced in
+        // gateway pre-dispatch, deny-wins"). Same synchronous placement as the window-closed
+        // check below, not the async outbox dispatcher (Guardian's placement) — a suppressed
+        // recipient should get an immediate rejection in the HTTP response. A suppression_list
+        // row means "no marketing" specifically (see SuppressionListEntry's doc comment):
+        // utility/authentication/service sends are never blocked by it.
+        var isSuppressed = templateCategory == "marketing" &&
+            await _db.SuppressionListEntries.AsNoTracking().AnyAsync(
+                s => s.TenantId == command.TenantId && s.WaId == command.ToWaId &&
+                     (s.ExpiresAt == null || s.ExpiresAt > DateTimeOffset.UtcNow),
+                cancellationToken);
+
         var windowState = await _windowStateClient.GetWindowStateAsync(
             command.PhoneNumberId, command.ToWaId, cancellationToken);
 
@@ -96,7 +108,19 @@ public sealed class SendMessageHandler : ICommandHandler<SendMessageCommand, Sen
             Version = 1,
         };
 
-        if (policy.Decision == SendDecision.RejectWindowClosed)
+        if (isSuppressed)
+        {
+            // Deny-wins: checked before the window policy so a suppressed recipient is rejected
+            // even when a customer-service window happens to be open (suppression is a stronger,
+            // consent-driven signal than window state).
+            message.Status = "rejected";
+            message.ErrorCode = "SUPPRESSED";
+            message.ErrorMessage =
+                "This recipient has opted out of marketing messages (consent.opt_out_events / " +
+                "messaging.suppression_list) — no marketing send may be dispatched to them.";
+            _db.OutboundMessages.Add(message);
+        }
+        else if (policy.Decision == SendDecision.RejectWindowClosed)
         {
             message.Status = "rejected";
             message.ErrorCode = "WINDOW_CLOSED";
