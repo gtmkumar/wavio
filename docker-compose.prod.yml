@@ -156,6 +156,10 @@ services:
       # is fail-closed (RequireHttpsMetadata=true) outside Development, which would 500 every
       # authenticated request against this http:// Authority. Override ONLY for that reason (S1).
       Jwt__RequireHttpsMetadata: "false"
+      # Meta Graph send path (issue #6). BaseUrl is a non-secret constant; the token is a
+      # system-user token (see deploy/secrets/README.md + docs/META_APP_SETUP.md).
+      Meta__Graph__BaseUrl: https://graph.facebook.com
+      Meta__Graph__AccessToken: ${META_GRAPH_ACCESS_TOKEN:?META_GRAPH_ACCESS_TOKEN must be set — see deploy/secrets/README.md}
 
   wa-ingest-svc:
     <<: *dotnet-service
@@ -181,6 +185,11 @@ services:
       # is fail-closed (RequireHttpsMetadata=true) outside Development, which would 500 every
       # authenticated request against this http:// Authority. Override ONLY for that reason (S1).
       Jwt__RequireHttpsMetadata: "false"
+      # Meta webhook credentials (issue #6): VerifyToken is self-chosen and typed into the
+      # Meta console's webhook config (GET handshake); AppSecret signs every delivery
+      # (X-Hub-Signature-256). Both fail closed — wrong/empty values reject, never accept.
+      Meta__Webhook__VerifyToken: ${META_WEBHOOK_VERIFY_TOKEN:?META_WEBHOOK_VERIFY_TOKEN must be set — see deploy/secrets/README.md}
+      Meta__Webhook__AppSecret: ${META_WEBHOOK_APP_SECRET:?META_WEBHOOK_APP_SECRET must be set — see deploy/secrets/README.md}
 
   wa-admin-svc:
     <<: *dotnet-service
@@ -206,6 +215,10 @@ services:
       # is fail-closed (RequireHttpsMetadata=true) outside Development, which would 500 every
       # authenticated request against this http:// Authority. Override ONLY for that reason (S1).
       Jwt__RequireHttpsMetadata: "false"
+      # Meta Graph template-management path (issue #6) — same token as wa-gateway-svc's
+      # send path; single system-user token until Embedded Signup lands per-WABA storage.
+      Meta__Graph__BaseUrl: https://graph.facebook.com
+      Meta__Graph__AccessToken: ${META_GRAPH_ACCESS_TOKEN:?META_GRAPH_ACCESS_TOKEN must be set — see deploy/secrets/README.md}
 
   wa-billing-svc:
     <<: *dotnet-service

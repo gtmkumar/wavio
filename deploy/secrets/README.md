@@ -97,6 +97,9 @@ the env file, which the app reads as `Jwt__PrivateKeyPath`).
 | `RABBITMQ_DEFAULT_USER` / `_PASS` | rabbitmq container | never published to the host — internal network only |
 | `PII_ENCRYPTION_KEY` | every service touching `WavioDbContext` | 32 random bytes, base64 (`openssl rand -base64 32`); rotating breaks existing `enc:v1` values until re-saved |
 | `JWT_PRIVATE_KEY_PATH` | `core` only | points at the decrypted PEM (see above), not the key itself |
+| `META_WEBHOOK_VERIFY_TOKEN` | `wa-ingest-svc` | self-chosen (`openssl rand -hex 32`); same value goes into the Meta console webhook config — see `docs/META_APP_SETUP.md` |
+| `META_WEBHOOK_APP_SECRET` | `wa-ingest-svc` | Meta App Dashboard → App settings → Basic; verifies `X-Hub-Signature-256` on every delivery |
+| `META_GRAPH_ACCESS_TOKEN` | `wa-gateway-svc`, `wa-admin-svc` | system-user token (messaging + management perms); single-token stopgap until Embedded Signup onboarding lands per-WABA storage |
 | `WAVIO_DOMAIN` | Caddy | must resolve to the VPS's public IP for ACME HTTP-01 to succeed |
 | `GHCR_OWNER` / `IMAGE_TAG` | `docker compose pull` | which images to pull from GHCR |
 
