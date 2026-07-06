@@ -13,10 +13,10 @@ import { EmptyState, ErrorState, FieldErrors, LoadingRows } from "@/components/s
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Sheet } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/utils";
@@ -177,13 +177,13 @@ function RateCardEditor({ card, onClose }: { card: RateCard | null; onClose: () 
 
   return (
     <>
-      <Dialog
+      <Sheet
         open
         onClose={onClose}
         title={card ? `Edit ${card.name}` : "New rate card"}
         description="Saving replaces the card's header and its entire entry set."
       >
-        <form onSubmit={onSubmit} noValidate className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+        <form onSubmit={onSubmit} noValidate className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="rc-name">Name</Label>
@@ -305,7 +305,7 @@ function RateCardEditor({ card, onClose }: { card: RateCard | null; onClose: () 
           {error && !error.fieldErrors ? (
             <p className="text-sm text-destructive">{error.message}</p>
           ) : null}
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 border-t pt-4">
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
@@ -322,7 +322,7 @@ function RateCardEditor({ card, onClose }: { card: RateCard | null; onClose: () 
             </Button>
           </div>
         </form>
-      </Dialog>
+      </Sheet>
       {stepUpDialog}
     </>
   );
