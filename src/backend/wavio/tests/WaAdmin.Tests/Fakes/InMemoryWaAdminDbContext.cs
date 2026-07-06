@@ -2,6 +2,7 @@ using WaAdmin.Application.Common.Interfaces;
 using wavio.SharedDataModel.Entities.Consent;
 using wavio.SharedDataModel.Entities.Messaging;
 using wavio.SharedDataModel.Entities.Templates;
+using wavio.SharedDataModel.Entities.Waba;
 using Microsoft.EntityFrameworkCore;
 
 namespace WaAdmin.Tests.Fakes;
@@ -20,6 +21,8 @@ public sealed class InMemoryWaAdminDbContext : DbContext, IWaAdminDbContext
     public DbSet<TemplateStatusEvent> TemplateStatusEvents => Set<TemplateStatusEvent>();
     public DbSet<TemplateCategoryChange> TemplateCategoryChanges => Set<TemplateCategoryChange>();
     public DbSet<TemplateLintResult> TemplateLintResults => Set<TemplateLintResult>();
+
+    public DbSet<WabaPhoneNumber> WabaPhoneNumbers => Set<WabaPhoneNumber>();
 
     public DbSet<OptInEvent> OptInEvents => Set<OptInEvent>();
     public DbSet<OptOutEvent> OptOutEvents => Set<OptOutEvent>();

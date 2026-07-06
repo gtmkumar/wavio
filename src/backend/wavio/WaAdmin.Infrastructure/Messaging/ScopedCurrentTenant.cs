@@ -29,7 +29,17 @@ public sealed class ScopedCurrentTenant : ICurrentTenant
     /// Left null for ordinary HTTP requests, where JWT claims are used instead.</summary>
     public Guid? OverrideTenantId { get; set; }
 
-    public Guid? TenantId => OverrideTenantId ?? GetGuid("tenant_id");
+    /// <summary>HTTP precedence mirrors <c>HttpContextCurrentTenant</c>: the platform-admin
+    /// X-Tenant-Id override (Items["tenant_id_override"], only set by TenantResolutionMiddleware
+    /// for user_type=platform_admin) wins over the JWT claim so RLS scopes to the acted-on
+    /// tenant — without it a platform admin has no tenant claim and every FORCE-RLS query
+    /// returns nothing (the parked platform-admin-write-rls-gap).</summary>
+    public Guid? TenantId =>
+        OverrideTenantId
+        ?? (_accessor.HttpContext?.Items["tenant_id_override"] is Guid headerOverride
+            ? headerOverride
+            : GetGuid("tenant_id"));
+
     public Guid? UserId => GetGuid(ClaimTypes.NameIdentifier);
 
     // Background consumer never bypasses RLS — it operates strictly within the one tenant it set.

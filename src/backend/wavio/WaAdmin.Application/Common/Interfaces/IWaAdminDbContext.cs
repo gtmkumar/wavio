@@ -1,6 +1,7 @@
 using wavio.SharedDataModel.Entities.Consent;
 using wavio.SharedDataModel.Entities.Messaging;
 using wavio.SharedDataModel.Entities.Templates;
+using wavio.SharedDataModel.Entities.Waba;
 using Microsoft.EntityFrameworkCore;
 
 namespace WaAdmin.Application.Common.Interfaces;
@@ -21,6 +22,10 @@ public interface IWaAdminDbContext
     DbSet<TemplateStatusEvent> TemplateStatusEvents { get; }
     DbSet<TemplateCategoryChange> TemplateCategoryChanges { get; }
     DbSet<TemplateLintResult> TemplateLintResults { get; }
+
+    /// <summary>Read-only picker surface for the admin console (GET /v1/waba/phone-numbers);
+    /// the shared <c>WabaPhoneNumber</c> entity already existed for the outbox dispatcher.</summary>
+    DbSet<WabaPhoneNumber> WabaPhoneNumbers { get; }
 
     DbSet<OptInEvent> OptInEvents { get; }
     DbSet<OptOutEvent> OptOutEvents { get; }

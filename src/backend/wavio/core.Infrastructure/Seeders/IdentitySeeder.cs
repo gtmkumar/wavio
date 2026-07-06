@@ -129,6 +129,10 @@ public sealed class IdentitySeeder
         ("campaigns.create",  "campaigns", "create", "Draft a campaign (audience + pinned template)",   RiskLevel.Normal),
         ("campaigns.launch",  "campaigns", "launch", "Launch a campaign — starts dispatching real spend", RiskLevel.High),
         ("campaigns.cancel",  "campaigns", "cancel", "Cancel a draft/running campaign",                 RiskLevel.Normal),
+
+        // wa-admin-svc read-only WABA lookups for the admin console (pickers: campaign
+        // "send from" number, template business account).
+        ("waba.phone_numbers.read", "waba", "read", "List the tenant's sender phone numbers", RiskLevel.Low),
     ];
 
     private async Task<Dictionary<string, Permission>> SeedPermissionsAsync(CancellationToken ct)
@@ -254,7 +258,8 @@ public sealed class IdentitySeeder
             "quality.health.read", "quality.tier_advisor.read",
             "consent.write", "consent.read", "consent.requests.manage", "consent.requests.read",
             "consent.retention.read", "consent.retention.manage",
-            "campaigns.list", "campaigns.read", "campaigns.create", "campaigns.launch", "campaigns.cancel");
+            "campaigns.list", "campaigns.read", "campaigns.create", "campaigns.launch", "campaigns.cancel",
+            "waba.phone_numbers.read");
 
         // staff: read-only + the example feature + day-to-day messaging.
         Grant("staff", "users.list", "users.read", "roles.list", "permissions.list", "widgets.manage",
@@ -268,7 +273,8 @@ public sealed class IdentitySeeder
             // Staff can draft a campaign but not launch/cancel one (High risk — launching commits
             // real spend; a tenant_admin approval gate, per the grant above) or cancel one either
             // (a running campaign already has real dispatched spend behind it).
-            "campaigns.list", "campaigns.read", "campaigns.create");
+            "campaigns.list", "campaigns.read", "campaigns.create",
+            "waba.phone_numbers.read");
 
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Seeded role→permission grants.");
