@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
  * campaigns (draft/scheduled/running/completed/cancelled/failed),
  * templates (DRAFT/PENDING/APPROVED/REJECTED/PAUSED/DISABLED),
  * phone numbers (CONNECTED/FLAGGED/RESTRICTED/BANNED/PENDING),
- * quality ratings (GREEN/YELLOW/RED) and incidents (open/resolved).
+ * quality ratings (GREEN/YELLOW/RED) and incidents (open/resolved),
+ * rate cards (draft/active/superseded), erasure requests (pending/completed).
  */
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "success" | "warning" | "destructive"> = {
   draft: "secondary",
@@ -14,6 +15,8 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "success" | "war
   launching: "default",
   completed: "success",
   approved: "success",
+  active: "success",
+  superseded: "secondary",
   connected: "success",
   green: "success",
   healthy: "success",

@@ -12,8 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppRateCardsRouteImport } from './routes/_app/rate-cards'
 import { Route as AppQualityRouteImport } from './routes/_app/quality'
 import { Route as AppMessagesRouteImport } from './routes/_app/messages'
+import { Route as AppConsentRouteImport } from './routes/_app/consent'
+import { Route as AppBillingRouteImport } from './routes/_app/billing'
 import { Route as AppTemplatesIndexRouteImport } from './routes/_app/templates.index'
 import { Route as AppCampaignsIndexRouteImport } from './routes/_app/campaigns.index'
 import { Route as AppTemplatesNewRouteImport } from './routes/_app/templates.new'
@@ -35,6 +38,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRateCardsRoute = AppRateCardsRouteImport.update({
+  id: '/rate-cards',
+  path: '/rate-cards',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppQualityRoute = AppQualityRouteImport.update({
   id: '/quality',
   path: '/quality',
@@ -43,6 +51,16 @@ const AppQualityRoute = AppQualityRouteImport.update({
 const AppMessagesRoute = AppMessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConsentRoute = AppConsentRouteImport.update({
+  id: '/consent',
+  path: '/consent',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBillingRoute = AppBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTemplatesIndexRoute = AppTemplatesIndexRouteImport.update({
@@ -79,8 +97,11 @@ const AppCampaignsCampaignIdRoute = AppCampaignsCampaignIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/billing': typeof AppBillingRoute
+  '/consent': typeof AppConsentRoute
   '/messages': typeof AppMessagesRoute
   '/quality': typeof AppQualityRoute
+  '/rate-cards': typeof AppRateCardsRoute
   '/campaigns/$campaignId': typeof AppCampaignsCampaignIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
   '/templates/$templateId': typeof AppTemplatesTemplateIdRoute
@@ -90,8 +111,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/billing': typeof AppBillingRoute
+  '/consent': typeof AppConsentRoute
   '/messages': typeof AppMessagesRoute
   '/quality': typeof AppQualityRoute
+  '/rate-cards': typeof AppRateCardsRoute
   '/': typeof AppIndexRoute
   '/campaigns/$campaignId': typeof AppCampaignsCampaignIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
@@ -104,8 +128,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/billing': typeof AppBillingRoute
+  '/_app/consent': typeof AppConsentRoute
   '/_app/messages': typeof AppMessagesRoute
   '/_app/quality': typeof AppQualityRoute
+  '/_app/rate-cards': typeof AppRateCardsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/campaigns/$campaignId': typeof AppCampaignsCampaignIdRoute
   '/_app/campaigns/new': typeof AppCampaignsNewRoute
@@ -119,8 +146,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/billing'
+    | '/consent'
     | '/messages'
     | '/quality'
+    | '/rate-cards'
     | '/campaigns/$campaignId'
     | '/campaigns/new'
     | '/templates/$templateId'
@@ -130,8 +160,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/billing'
+    | '/consent'
     | '/messages'
     | '/quality'
+    | '/rate-cards'
     | '/'
     | '/campaigns/$campaignId'
     | '/campaigns/new'
@@ -143,8 +176,11 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/login'
+    | '/_app/billing'
+    | '/_app/consent'
     | '/_app/messages'
     | '/_app/quality'
+    | '/_app/rate-cards'
     | '/_app/'
     | '/_app/campaigns/$campaignId'
     | '/_app/campaigns/new'
@@ -182,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/rate-cards': {
+      id: '/_app/rate-cards'
+      path: '/rate-cards'
+      fullPath: '/rate-cards'
+      preLoaderRoute: typeof AppRateCardsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/quality': {
       id: '/_app/quality'
       path: '/quality'
@@ -194,6 +237,20 @@ declare module '@tanstack/react-router' {
       path: '/messages'
       fullPath: '/messages'
       preLoaderRoute: typeof AppMessagesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/consent': {
+      id: '/_app/consent'
+      path: '/consent'
+      fullPath: '/consent'
+      preLoaderRoute: typeof AppConsentRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/billing': {
+      id: '/_app/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof AppBillingRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/templates/': {
@@ -242,8 +299,11 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppBillingRoute: typeof AppBillingRoute
+  AppConsentRoute: typeof AppConsentRoute
   AppMessagesRoute: typeof AppMessagesRoute
   AppQualityRoute: typeof AppQualityRoute
+  AppRateCardsRoute: typeof AppRateCardsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppCampaignsCampaignIdRoute: typeof AppCampaignsCampaignIdRoute
   AppCampaignsNewRoute: typeof AppCampaignsNewRoute
@@ -254,8 +314,11 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppBillingRoute: AppBillingRoute,
+  AppConsentRoute: AppConsentRoute,
   AppMessagesRoute: AppMessagesRoute,
   AppQualityRoute: AppQualityRoute,
+  AppRateCardsRoute: AppRateCardsRoute,
   AppIndexRoute: AppIndexRoute,
   AppCampaignsCampaignIdRoute: AppCampaignsCampaignIdRoute,
   AppCampaignsNewRoute: AppCampaignsNewRoute,

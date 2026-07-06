@@ -10,7 +10,9 @@ import {
   MessageSquareText,
   Moon,
   Send,
+  ShieldCheck,
   Sun,
+  Wallet,
 } from "lucide-react";
 import { useServicesHealth } from "@/api/queries/health";
 import { useAuth } from "@/auth/AuthContext";
@@ -27,6 +29,8 @@ const NAV_ITEMS = [
   { to: "/campaigns", label: "Campaigns", icon: Megaphone, permission: "campaigns.list" },
   { to: "/templates", label: "Templates", icon: MessageSquareText, permission: "templates.list" },
   { to: "/quality", label: "Quality", icon: Activity, permission: "quality.health.read" },
+  { to: "/billing", label: "Billing", icon: Wallet, permission: "billing.quotas.read" },
+  { to: "/consent", label: "Consent", icon: ShieldCheck, permission: "consent.read" },
   { to: "/messages", label: "Send Message", icon: Send, permission: "messages.send" },
 ] as const;
 

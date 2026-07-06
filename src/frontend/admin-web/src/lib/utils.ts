@@ -27,3 +27,23 @@ export function formatNumber(n: number | null | undefined): string {
 export function formatRate(rate: number | null | undefined): string {
   return rate == null ? "—" : `${(rate * 100).toFixed(1)}%`;
 }
+
+/** Amount + ISO currency code (e.g. billing ledger totals, per-message prices). */
+export function formatMoney(
+  amount: number | null | undefined,
+  currency: string | null | undefined,
+): string {
+  if (amount == null) return "—";
+  if (!currency) return numberFormat.format(amount);
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    }).format(amount);
+  } catch {
+    // Unknown/garbage currency code from data — don't crash the page over formatting.
+    return `${numberFormat.format(amount)} ${currency}`;
+  }
+}

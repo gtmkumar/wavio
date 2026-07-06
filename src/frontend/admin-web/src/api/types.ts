@@ -260,6 +260,208 @@ export interface WindowState {
   ctwaOpen: boolean;
 }
 
+// ── Billing / WaBilling (envelope-wrapped) ───────────────────────────────────
+
+// WaBilling.Application/RateCards/Dtos/RateCardDtos.cs
+export const RATE_CARD_CATEGORIES = [
+  "marketing",
+  "utility",
+  "authentication",
+  "authentication_international",
+  "service",
+] as const;
+
+export interface RateCardEntry {
+  id: string;
+  category: string;
+  market: string;
+  volumeTier: string | null;
+  pricePerMessage: number;
+  currency: string;
+}
+
+export interface RateCard {
+  id: string;
+  name: string;
+  currency: string;
+  source: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  status: string;
+  notes: string | null;
+  entries: RateCardEntry[];
+}
+
+export interface UpsertRateCardEntryRequest {
+  category: string;
+  market: string;
+  volumeTier: string | null;
+  pricePerMessage: number;
+}
+
+export interface UpsertRateCardRequest {
+  name: string;
+  currency: string;
+  source: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  status: string;
+  notes: string | null;
+  entries: UpsertRateCardEntryRequest[];
+}
+
+// WaBilling.Application/Quotas/Dtos/QuotaDtos.cs
+export interface QuotaStatusEntry {
+  category: string;
+  period: string;
+  limitUnit: string;
+  softLimit: number | null;
+  hardLimit: number | null;
+  currentValue: number;
+  softLimitAlerted: boolean;
+  hardLimitBlocked: boolean;
+}
+
+// WaBilling.Application/Estimator/Dtos/CostEstimateDto.cs
+export interface CostEstimate {
+  found: boolean;
+  billable: boolean;
+  amount: number;
+  currency: string;
+  category: string;
+  market: string;
+  volumeTier: string | null;
+  rateCardId: string | null;
+  reason: string;
+}
+
+// WaBilling.Application/Reconciliation/Dtos/ReconciliationDto.cs
+export interface Reconciliation {
+  periodStart: string;
+  periodEnd: string;
+  ledgerTotal: number;
+  ledgerRowCount: number;
+  invoiceTotal: number;
+  invoiceRowCount: number;
+  varianceAmount: number;
+  variancePercent: number | null;
+  withinTarget: boolean;
+}
+
+// ── Consent / DPDP / WaAdmin (envelope-wrapped) ──────────────────────────────
+
+// WaAdmin.Application/Consent/Dtos/ConsentDtos.cs
+export const CONSENT_PURPOSES = ["transactional", "marketing", "service"] as const;
+export const CONSENT_CAPTURE_CHANNELS = [
+  "web_form",
+  "qr",
+  "in_chat",
+  "in_person",
+  "api",
+  "import",
+] as const;
+/** Manual API path — stop_keyword is reserved for the STOP listener. */
+export const OPT_OUT_REASONS = ["manual", "complaint"] as const;
+export const OPT_OUT_SCOPES = ["marketing", "all"] as const;
+
+export interface RecordOptInRequest {
+  waId: string;
+  purpose: string;
+  captureChannel: string;
+  onBehalfOfWaId: string | null;
+  onBehalfOfName: string | null;
+  evidenceProofRef: string | null;
+  evidenceWamid: string | null;
+  actor: string | null;
+}
+
+export interface OptInEvent {
+  id: string;
+  waId: string;
+  purpose: string;
+  captureChannel: string;
+  evidenceWamid: string | null;
+  actor: string | null;
+  occurredAt: string;
+}
+
+export interface RecordManualOptOutRequest {
+  waId: string;
+  scope: string;
+  reason: string;
+  notes: string | null;
+}
+
+export interface OptOutEvent {
+  id: string;
+  waId: string;
+  scope: string;
+  reason: string;
+  keyword: string | null;
+  language: string | null;
+  occurredAt: string;
+}
+
+export interface ConsentPurposeState {
+  purpose: string;
+  optedIn: boolean;
+  lastOptInAt: string | null;
+  lastOptOutAt: string | null;
+}
+
+export interface ConsentState {
+  waId: string;
+  suppressed: boolean;
+  purposes: ConsentPurposeState[];
+}
+
+export const ERASURE_REQUEST_TYPES = ["erasure", "export"] as const;
+
+export interface CreateErasureRequestRequest {
+  waId: string;
+  requestType: string;
+  reason: string | null;
+  requestedBy: string | null;
+}
+
+export interface ErasureRequest {
+  id: string;
+  waId: string;
+  requestType: string;
+  status: string;
+  reason: string | null;
+  contentErasedAt: string | null;
+  exportRef: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+// WaAdmin.Application/RetentionPolicies (UpsertRetentionPolicyCommandHandler vocabulary)
+export const RETENTION_DATA_CLASSES = [
+  "message_content",
+  "metadata",
+  "cost_ledger",
+  "consent_evidence",
+  "raw_webhook",
+] as const;
+
+export interface RetentionPolicy {
+  id: string;
+  tenantId: string | null;
+  dataClass: string;
+  retentionDays: number;
+  basis: string | null;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+export interface UpsertRetentionPolicyRequest {
+  dataClass: string;
+  retentionDays: number;
+  basis: string | null;
+  enabled: boolean;
+}
+
 // ── Gateway health aggregation (wavio.Gateway /health/services) ──────────────
 // 200 when all healthy, 207 Multi-Status when any service is degraded.
 
