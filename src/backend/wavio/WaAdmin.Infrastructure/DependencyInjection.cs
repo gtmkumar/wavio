@@ -33,8 +33,36 @@ public static class DependencyInjection
         services.AddScoped<ScopedCurrentTenant>();
         services.Replace(ServiceDescriptor.Scoped<ICurrentTenant>(sp => sp.GetRequiredService<ScopedCurrentTenant>()));
 
-        // Lint stub (Wave 1) — always passes; Wave 3 (#27) adds real rules/LLM linters.
-        services.AddScoped<ITemplateLintService, StubTemplateLintService>();
+        // Lint pipeline (issue #27): both registrations resolve as IEnumerable<ITemplateLintService>
+        // in TemplateSubmissionService, which runs every one of them and records a
+        // template_lint_results row per linter. Rules always runs. The LLM pass is registered only
+        // when Lint:Llm:Enabled is true — when it's not, the pipeline is rules-only by omission,
+        // not by a runtime branch (see LlmTemplateLintService's own doc comment).
+        services.AddScoped<ITemplateLintService, RulesTemplateLintService>();
+
+        // ValidateOnStart: Enabled=true with a missing ApiKey or a non-https/invalid BaseUrl
+        // fails the host at boot with a clear message, instead of every lint run silently
+        // degrading to "skipped" (missing key) or 500ing inside the typed-client factory
+        // (bad BaseUrl) — same fail-fast posture as the Meta:Graph boot guard (security
+        // review, issue #27 finding 1).
+        services.AddOptionsWithValidateOnStart<LintLlmOptions>()
+            .Bind(configuration.GetSection(LintLlmOptions.SectionName))
+            .Validate(LintLlmOptions.IsValid,
+                "Lint:Llm is enabled but misconfigured: ApiKey must be set and BaseUrl must be an absolute https:// URL.");
+
+        var llmEnabled = configuration.GetSection(LintLlmOptions.SectionName).GetValue<bool>("Enabled");
+        if (llmEnabled)
+        {
+            services.AddHttpClient<ITemplateLintService, LlmTemplateLintService>((sp, client) =>
+                {
+                    var llmOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<LintLlmOptions>>().Value;
+                    client.BaseAddress = new Uri(llmOptions.BaseUrl);
+                })
+                // HttpClientFactory's built-in handlers log request headers at Trace level;
+                // without this, flipping System.Net.Http.HttpClient to Trace while debugging
+                // would write the Anthropic key to logs (issue #27 finding 2).
+                .RedactLoggedHeaders(["x-api-key"]);
+        }
 
         // Wave 2 hooks (#19 billing, #22 campaigns) — honest no-ops for now, see their doc comments.
         services.AddScoped<ICampaignFreezeHook, NoOpCampaignFreezeHook>();

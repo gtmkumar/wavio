@@ -3,6 +3,7 @@ using WaAdmin.Application.Templates.Commands.DeleteTemplate;
 using WaAdmin.Application.Templates.Commands.SubmitTemplate;
 using WaAdmin.Application.Templates.Commands.UpdateTemplate;
 using WaAdmin.Application.Templates.Dtos;
+using WaAdmin.Application.Templates.Queries.GetTemplateApprovalMetrics;
 using WaAdmin.Application.Templates.Queries.GetTemplateById;
 using WaAdmin.Application.Templates.Queries.GetTemplates;
 using WaAdmin.Application.Templates.Queries.GetTemplateStatus;
@@ -27,6 +28,7 @@ public class Templates : IEndpointGroup
         groupBuilder.WithTags("Templates").RequireAuthorization();
 
         groupBuilder.MapGet(GetTemplates).RequireAuthorization("permission:templates.list");
+        groupBuilder.MapGet(GetTemplateApprovalMetrics, "metrics/approval-rate").RequireAuthorization("permission:templates.list");
         groupBuilder.MapGet(GetTemplateById, "{id:guid}").RequireAuthorization("permission:templates.read");
         groupBuilder.MapGet(GetTemplateStatus, "{id:guid}/status").RequireAuthorization("permission:templates.read");
         groupBuilder.MapPost(CreateTemplate).RequireAuthorization("permission:templates.create");
@@ -45,6 +47,12 @@ public class Templates : IEndpointGroup
         var data = await dispatcher.QueryAsync(
             new GetTemplatesQuery(page, pageSize, status, category, businessAccountId), ct);
         return Results.Ok(new PaginatedListResponse<TemplateDto> { Status = true, Data = data });
+    }
+
+    public static async Task<IResult> GetTemplateApprovalMetrics(IDispatcher dispatcher, CancellationToken ct)
+    {
+        var data = await dispatcher.QueryAsync(new GetTemplateApprovalMetricsQuery(), ct);
+        return Results.Ok(new SingleResponse<TemplateApprovalMetricsDto> { Status = true, Data = data });
     }
 
     public static async Task<IResult> GetTemplateById(Guid id, IDispatcher dispatcher, CancellationToken ct)

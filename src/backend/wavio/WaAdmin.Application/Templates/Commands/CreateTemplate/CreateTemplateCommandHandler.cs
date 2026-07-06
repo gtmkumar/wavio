@@ -10,14 +10,11 @@ namespace WaAdmin.Application.Templates.Commands.CreateTemplate;
 public sealed class CreateTemplateCommandHandler : ICommandHandler<CreateTemplateCommand, Dtos.CreateTemplateResult>
 {
     private readonly IWaAdminDbContext _db;
-    private readonly ITemplateLintService _lint;
     private readonly ITemplateSubmissionService _submission;
 
-    public CreateTemplateCommandHandler(
-        IWaAdminDbContext db, ITemplateLintService lint, ITemplateSubmissionService submission)
+    public CreateTemplateCommandHandler(IWaAdminDbContext db, ITemplateSubmissionService submission)
     {
         _db = db;
-        _lint = lint;
         _submission = submission;
     }
 
@@ -101,33 +98,12 @@ public sealed class CreateTemplateCommandHandler : ICommandHandler<CreateTemplat
         template.CurrentVersionId = version.Id;
         await _db.SaveChangesAsync(cancellationToken);
 
-        var lintOutcome = await _lint.LintAsync(componentsJson, cancellationToken);
-        _db.TemplateLintResults.Add(new TemplateLintResult
-        {
-            Id = Guid.NewGuid(),
-            TenantId = command.TenantId,
-            TemplateVersionId = version.Id,
-            Linter = _lint.Linter,
-            Passed = lintOutcome.Passed,
-            Findings = lintOutcome.Findings,
-            Score = lintOutcome.Score,
-            CreatedAt = now,
-            CreatedBy = command.ActorId,
-        });
-
-        await _db.SaveChangesAsync(cancellationToken);
-
-        if (!lintOutcome.Passed)
-        {
-            // Creation still succeeds (the row is durable and visible to the tenant); submission
-            // is withheld so failing content is never sent to Meta. Wave 3 (#27) is where lint
-            // findings become real — the stub linter always passes, so this branch is currently
-            // unreachable in production but exercised directly in tests.
-            return new Dtos.CreateTemplateResult(
-                template.ToDto(version), SubmittedToMeta: false,
-                SubmissionError: "Lint failed; resolve findings before submitting.");
-        }
-
+        // Lint gating lives entirely in TemplateSubmissionService.SubmitAsync (issue #27) — it
+        // runs every registered linter, persists a template_lint_results row per linter, and
+        // withholds the Graph submission (never the row itself — creation still succeeds) when
+        // any linter blocks. This is also what makes the standalone POST .../submit resubmit path
+        // (SubmitTemplateCommandHandler) lint-gated identically, not just the create-and-submit
+        // flow here.
         var outcome = await _submission.SubmitAsync(template, version, command.ActorId, cancellationToken);
         return new Dtos.CreateTemplateResult(template.ToDto(version), outcome.Submitted, outcome.Error);
     }

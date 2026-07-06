@@ -53,8 +53,9 @@ public sealed class CreateTemplateCircularFkTests
         graph.Setup(g => g.SubmitTemplateAsync(It.IsAny<GraphTemplateSubmitRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GraphTemplateSubmitResult(true, "meta-tpl-itest", null));
 
-        var submission = new TemplateSubmissionService(db, graph.Object, NullLogger<TemplateSubmissionService>.Instance);
-        var handler = new CreateTemplateCommandHandler(db, new StubTemplateLintService(), submission);
+        var submission = new TemplateSubmissionService(
+            db, graph.Object, [new StubTemplateLintService()], NullLogger<TemplateSubmissionService>.Instance);
+        var handler = new CreateTemplateCommandHandler(db, submission);
 
         var definition = new TemplateDefinition
         {

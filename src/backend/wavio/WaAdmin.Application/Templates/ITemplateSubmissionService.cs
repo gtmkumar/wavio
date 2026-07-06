@@ -8,10 +8,12 @@ namespace WaAdmin.Application.Templates;
 public sealed record TemplateSubmissionOutcome(bool Submitted, string? Error);
 
 /// <summary>
-/// Submits a DRAFT template version to Meta and, on acceptance, performs the app-enforced
-/// DRAFT -&gt; PENDING transition (recording a <see cref="TemplateStatusEvent"/>). Shared between
-/// the create-and-submit flow (POST /v1/templates) and the standalone resubmit flow
-/// (POST /v1/templates/{id}/submit) so the transition logic lives in exactly one place.
+/// Lints (issue #27 — every registered <see cref="WaAdmin.Application.Common.Interfaces.ITemplateLintService"/>
+/// runs here, gating on any blocking finding) and submits a DRAFT template version to Meta, then
+/// on acceptance performs the app-enforced DRAFT -&gt; PENDING transition (recording a
+/// <see cref="TemplateStatusEvent"/>). Shared between the create-and-submit flow
+/// (POST /v1/templates) and the standalone resubmit flow (POST /v1/templates/{id}/submit) so both
+/// the lint gate and the transition logic live in exactly one place.
 /// </summary>
 public interface ITemplateSubmissionService
 {

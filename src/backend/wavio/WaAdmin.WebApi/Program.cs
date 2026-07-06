@@ -162,6 +162,21 @@ else
     await retentionSeeder.SeedAsync(CancellationToken.None);
 }
 
+// ── Vertical template pack platform defaults (issue #27, spec §4.4) ────────────
+// Same "boot even with no database" / "every environment" posture as RetentionPolicySeeder above.
+if (string.IsNullOrWhiteSpace(adminConnStr))
+{
+    app.Logger.LogWarning("TemplatePackSeeder skipped: no ConnectionStrings:Admin configured.");
+}
+else
+{
+    using var templatePackSeederScope = app.Services.CreateScope();
+    var templatePackSeeder = new WaAdmin.Infrastructure.Seeders.TemplatePackSeeder(
+        adminConnStr,
+        templatePackSeederScope.ServiceProvider.GetRequiredService<ILogger<WaAdmin.Infrastructure.Seeders.TemplatePackSeeder>>());
+    await templatePackSeeder.SeedAsync(CancellationToken.None);
+}
+
 // ── Forwarded headers (prod/staging, behind the gateway/edge proxy) ───────────
 app.UseForwardedHeadersIfEnabled();
 

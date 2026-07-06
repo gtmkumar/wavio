@@ -64,3 +64,15 @@ public sealed record CreateTemplateResult(
     TemplateDto Template,
     bool SubmittedToMeta,
     string? SubmissionError);
+
+/// <summary>GET /v1/templates/metrics/approval-rate (issue #27, spec §4.4: target &gt;90% first-pass
+/// approval). Scoped to whatever templates.template_status_events / template_lint_results rows
+/// are visible under RLS for the caller's tenant — same "scoping via RLS, not an explicit filter"
+/// posture as GetTemplatesQueryHandler.</summary>
+public sealed record TemplateApprovalMetricsDto(
+    int ReviewedVersionCount,
+    int FirstPassApprovedCount,
+    double? FirstPassApprovalRate,
+    int LintRunCount,
+    int LintPassedCount,
+    double? LintPassRate);

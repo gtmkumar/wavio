@@ -33,6 +33,10 @@ public class CreateTemplateCommandHandlerTests
         return db;
     }
 
+    private static TemplateSubmissionService Submission(
+        InMemoryWaAdminDbContext db, Mock<IWhatsAppTemplateGraphClient> graph, params ITemplateLintService[] linters) =>
+        new(db, graph.Object, linters.Length == 0 ? [new StubTemplateLintService()] : linters, NullLogger());
+
     [Fact]
     public async Task HandleAsync_ValidTemplate_CreatesDraftAndSubmitsToMeta()
     {
@@ -41,8 +45,8 @@ public class CreateTemplateCommandHandlerTests
         graph.Setup(g => g.SubmitTemplateAsync(It.IsAny<GraphTemplateSubmitRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GraphTemplateSubmitResult(true, "meta-tpl-1", null));
 
-        var submission = new TemplateSubmissionService(db, graph.Object, NullLogger());
-        var handler = new CreateTemplateCommandHandler(db, new StubTemplateLintService(), submission);
+        var submission = Submission(db, graph);
+        var handler = new CreateTemplateCommandHandler(db, submission);
 
         var command = new CreateTemplateCommand(
             new CreateTemplateRequest(BusinessAccountId, Definition(), null), TenantId, Guid.NewGuid());
@@ -62,7 +66,8 @@ public class CreateTemplateCommandHandlerTests
         Assert.Equal(TemplateStatusTransitions.Draft, evt.OldStatus);
         Assert.Equal(TemplateStatusTransitions.Pending, evt.NewStatus);
 
-        // Lint always runs and is recorded, even though the stub always passes.
+        // Lint always runs and is recorded, even though the stub always passes (issue #27: the
+        // lint gate now lives in TemplateSubmissionService, not here).
         var lint = Assert.Single(db.TemplateLintResults.ToList());
         Assert.True(lint.Passed);
         Assert.Equal("stub", lint.Linter);
@@ -76,8 +81,8 @@ public class CreateTemplateCommandHandlerTests
         graph.Setup(g => g.SubmitTemplateAsync(It.IsAny<GraphTemplateSubmitRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GraphTemplateSubmitResult(false, null, "Template name violates policy."));
 
-        var submission = new TemplateSubmissionService(db, graph.Object, NullLogger());
-        var handler = new CreateTemplateCommandHandler(db, new StubTemplateLintService(), submission);
+        var submission = Submission(db, graph);
+        var handler = new CreateTemplateCommandHandler(db, submission);
 
         var command = new CreateTemplateCommand(
             new CreateTemplateRequest(BusinessAccountId, Definition(), null), TenantId, Guid.NewGuid());
@@ -99,8 +104,8 @@ public class CreateTemplateCommandHandlerTests
         graph.Setup(g => g.SubmitTemplateAsync(It.IsAny<GraphTemplateSubmitRequest>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("connection refused"));
 
-        var submission = new TemplateSubmissionService(db, graph.Object, NullLogger());
-        var handler = new CreateTemplateCommandHandler(db, new StubTemplateLintService(), submission);
+        var submission = Submission(db, graph);
+        var handler = new CreateTemplateCommandHandler(db, submission);
 
         var command = new CreateTemplateCommand(
             new CreateTemplateRequest(BusinessAccountId, Definition(), null), TenantId, Guid.NewGuid());
@@ -118,12 +123,12 @@ public class CreateTemplateCommandHandlerTests
         await using var db = NewDb();
         var graph = new Mock<IWhatsAppTemplateGraphClient>();
         var failingLint = new Mock<ITemplateLintService>();
-        failingLint.SetupGet(l => l.Linter).Returns("stub");
-        failingLint.Setup(l => l.LintAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        failingLint.SetupGet(l => l.Linter).Returns("rules");
+        failingLint.Setup(l => l.LintAsync(It.IsAny<TemplateLintInput>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TemplateLintOutcome(false, "[{\"code\":\"banned_word\"}]", 10));
 
-        var submission = new TemplateSubmissionService(db, graph.Object, NullLogger());
-        var handler = new CreateTemplateCommandHandler(db, failingLint.Object, submission);
+        var submission = Submission(db, graph, failingLint.Object);
+        var handler = new CreateTemplateCommandHandler(db, submission);
 
         var command = new CreateTemplateCommand(
             new CreateTemplateRequest(BusinessAccountId, Definition(), null), TenantId, Guid.NewGuid());
@@ -131,8 +136,13 @@ public class CreateTemplateCommandHandlerTests
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.False(result.SubmittedToMeta);
+        Assert.Contains("Lint failed", result.SubmissionError);
         Assert.Equal(TemplateStatusTransitions.Draft, result.Template.Status);
         graph.Verify(g => g.SubmitTemplateAsync(It.IsAny<GraphTemplateSubmitRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        // The lint row is durable even when it blocks submission.
+        var lint = Assert.Single(db.TemplateLintResults.ToList());
+        Assert.False(lint.Passed);
     }
 
     [Fact]
@@ -143,8 +153,8 @@ public class CreateTemplateCommandHandlerTests
         graph.Setup(g => g.SubmitTemplateAsync(It.IsAny<GraphTemplateSubmitRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GraphTemplateSubmitResult(true, "meta-tpl-1", null));
 
-        var submission = new TemplateSubmissionService(db, graph.Object, NullLogger());
-        var handler = new CreateTemplateCommandHandler(db, new StubTemplateLintService(), submission);
+        var submission = Submission(db, graph);
+        var handler = new CreateTemplateCommandHandler(db, submission);
 
         var command = new CreateTemplateCommand(
             new CreateTemplateRequest(BusinessAccountId, Definition(), null), TenantId, Guid.NewGuid());
@@ -153,6 +163,6 @@ public class CreateTemplateCommandHandlerTests
         await Assert.ThrowsAsync<BusinessRuleException>(() => handler.HandleAsync(command, CancellationToken.None));
     }
 
-    private static Microsoft.Extensions.Logging.Abstractions.NullLogger<TemplateSubmissionService> NullLogger() =>
+    internal static Microsoft.Extensions.Logging.Abstractions.NullLogger<TemplateSubmissionService> NullLogger() =>
         Microsoft.Extensions.Logging.Abstractions.NullLogger<TemplateSubmissionService>.Instance;
 }
