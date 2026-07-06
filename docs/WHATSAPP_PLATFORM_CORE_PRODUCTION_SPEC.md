@@ -403,7 +403,7 @@ Institutional memory in `.agents/memory/`; checkpoints in `.agents/checkpoints/`
 - **ADR-004 — Shared platform as separate deployable + separate DB**, not a schema inside each vertical DB. Verticals integrate via API/events only; no cross-DB FKs. ACCEPTED.
 - **ADR-005 — Window-aware send rejection** (no silent free-form→template conversion). Cost transparency to verticals over convenience. ACCEPTED.
 - **ADR-006 — INR-native WABA provisioning + migration tooling** ahead of 2026-12-31 deadline. ACCEPTED.
-- **ADR-007 — Custom CQRS without MediatR** per microservices-architect skill; platform is service-oriented, not the Jason Taylor monolith template. PROPOSED — confirm.
+- **ADR-007 — Custom CQRS without MediatR** per microservices-architect skill; platform is service-oriented, not the Jason Taylor monolith template. ACCEPTED (OD-3 confirmed 2026-07-06 — see `docs/OPEN_DECISIONS.md`).
 
 ---
 
@@ -422,11 +422,13 @@ Institutional memory in `.agents/memory/`; checkpoints in `.agents/checkpoints/`
 
 ## 14. OPEN DECISIONS
 
-- **OD-1:** Meta "AI Providers" pricing policy — legal review outcome; does our AI gateway classify us as an AI Provider? **Blocker for Wave 4.**
-- **OD-2:** Laundry Ghar number strategy — one number per franchise outlet vs shared number + outlet routing. Cost, tier, and green-tick implications differ.
-- **OD-3:** Confirm ADR-007 (custom CQRS vs MediatR) — align with existing DocSlot codebase direction before Wave 1.
-- **OD-4:** Marketing Messages Lite API adoption (Meta's lightweight marketing send path) — evaluate vs standard Cloud API sends for campaign engine.
-- **OD-5:** Tenant-visible channel pricing — pure pass-through of Meta cost vs bundled quota in subscription tiers (recommendation: bundled quota, pass-through overage).
+Resolution records live in `docs/OPEN_DECISIONS.md` (2026-07-06, issue #7); statuses below are summaries.
+
+- **OD-1:** Meta "AI Providers" pricing policy — does our AI gateway classify us as an AI Provider? **Resolved (RATIFY):** engineering position is *not* an AI Provider (business-specific automation, not a general-purpose assistant); Wave 4 build unblocked under recorded constraints; owner/legal sign-off still gates Wave 4 GA.
+- **OD-2:** Laundry Ghar number strategy. **Resolved (RATIFY):** shared brand number + outlet routing by default; escalate individual outlets to dedicated numbers on volume/quality triggers.
+- **OD-3:** Confirm ADR-007 (custom CQRS vs MediatR). **Resolved (ACCEPTED):** confirmed by shipped Wave 1–2 code; ADR-007 status updated above.
+- **OD-4:** Marketing Messages Lite API adoption. **Deferred:** re-evaluate after G2 with real campaign volume; dispatch seam preserved at the Graph client.
+- **OD-5:** Tenant-visible channel pricing. **Adopted position:** bundled quota + transparent pass-through overage.
 
 ---
 

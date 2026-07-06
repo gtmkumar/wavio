@@ -101,12 +101,12 @@ Blockers for everything else.
 - **Quarterly (Jan/Apr/Jul/Oct 1)** — Meta rate-card updates; refresh job in #19.
 - **~Oct 2026** — max-price bidding open beta; flag flips in #28.
 
-## Open decisions (tracked in #7)
+## Open decisions (tracked in #7 — resolution records in `docs/OPEN_DECISIONS.md`, 2026-07-06)
 
-| ID | Question | Blocks |
-|---|---|---|
-| OD-1 | Does the AI gateway make us an "AI Provider" under Meta's 2026 policy? | Wave 4 GA |
-| OD-2 | Laundry Ghar: number per outlet vs shared number + routing | Wave 3 (G2) |
-| OD-3 | Confirm ADR-007 custom CQRS (no MediatR) | Wave 1 code style |
-| OD-4 | Marketing Messages Lite API adoption | Campaign engine (non-blocking) |
-| OD-5 | Tenant channel pricing: bundled quota + pass-through overage (recommended) | Billing plans (non-blocking) |
+| ID | Question | Blocks | Outcome |
+|---|---|---|---|
+| OD-1 | Does the AI gateway make us an "AI Provider" under Meta's 2026 policy? | Wave 4 GA | Not an AI Provider (engineering position); build unblocked, GA needs owner/legal sign-off |
+| OD-2 | Laundry Ghar: number per outlet vs shared number + routing | Wave 3 (G2) | Shared brand number + outlet routing; per-outlet escalation on volume/quality triggers |
+| OD-3 | Confirm ADR-007 custom CQRS (no MediatR) | Wave 1 code style | ACCEPTED — confirmed by shipped Wave 1–2 code |
+| OD-4 | Marketing Messages Lite API adoption | Campaign engine (non-blocking) | Deferred to post-G2 volume data; Graph-client seam preserved |
+| OD-5 | Tenant channel pricing: bundled quota + pass-through overage (recommended) | Billing plans (non-blocking) | Adopted: bundled quota + pass-through overage |
