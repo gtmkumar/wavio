@@ -43,10 +43,11 @@ export function useTemplates(filters: TemplateListFilters = {}) {
   });
 }
 
-export function useTemplate(id: string) {
+export function useTemplate(id: string | null) {
   return useQuery({
-    queryKey: templateKeys.detail(id),
+    queryKey: templateKeys.detail(id ?? ""),
     queryFn: ({ signal }) => apiFetch<Template>(`${BASE}/${id}`, { signal }),
+    enabled: id !== null,
   });
 }
 

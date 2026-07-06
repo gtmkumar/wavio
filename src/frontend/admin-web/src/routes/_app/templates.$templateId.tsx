@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { SendHorizontal, Trash2 } from "lucide-react";
+import { Braces, SendHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/api/http";
 import {
@@ -13,6 +13,11 @@ import { useAuth } from "@/auth/AuthContext";
 import { useStepUpGuard } from "@/auth/StepUpDialog";
 import { ErrorState, LoadingRows } from "@/components/shared/states";
 import { StatusBadge } from "@/components/shared/status-badge";
+import {
+  parseComponentsJson,
+  parseValuesJson,
+  TemplatePreview,
+} from "@/components/shared/template-preview";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
@@ -118,20 +123,36 @@ function TemplateDetailPage() {
                       {t!.currentVersion.rejectionReason}
                     </p>
                   ) : null}
-                  <div>
-                    <p className="mb-1 text-muted-foreground">Compiled components</p>
-                    <pre className="max-h-72 overflow-auto rounded-md bg-muted p-3 font-mono text-xs">
-                      {prettyJson(t!.currentVersion.componentsJson)}
-                    </pre>
-                  </div>
-                  {t!.currentVersion.exampleValuesJson ? (
-                    <div>
-                      <p className="mb-1 text-muted-foreground">Example values</p>
-                      <pre className="overflow-auto rounded-md bg-muted p-3 font-mono text-xs">
-                        {prettyJson(t!.currentVersion.exampleValuesJson)}
+                  {(() => {
+                    const content = parseComponentsJson(t!.currentVersion!.componentsJson);
+                    const values = parseValuesJson(t!.currentVersion!.exampleValuesJson);
+                    return content ? (
+                      <div>
+                        <p className="mb-1 text-muted-foreground">Message preview</p>
+                        <TemplatePreview content={content} values={values} />
+                        {Object.keys(values).length > 0 ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Variables shown with the template's sample values.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null;
+                  })()}
+                  <details className="rounded-md border">
+                    <summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground">
+                      <Braces className="size-3.5" /> Technical view — compiled Meta JSON
+                    </summary>
+                    <div className="space-y-2 border-t p-3">
+                      <pre className="max-h-72 overflow-auto rounded-md bg-muted p-3 font-mono text-xs">
+                        {prettyJson(t!.currentVersion.componentsJson)}
                       </pre>
+                      {t!.currentVersion.exampleValuesJson ? (
+                        <pre className="overflow-auto rounded-md bg-muted p-3 font-mono text-xs">
+                          {prettyJson(t!.currentVersion.exampleValuesJson)}
+                        </pre>
+                      ) : null}
                     </div>
-                  ) : null}
+                  </details>
                 </>
               ) : (
                 <p className="text-muted-foreground">No version yet.</p>
