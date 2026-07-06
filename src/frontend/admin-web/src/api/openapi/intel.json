@@ -1,0 +1,280 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "WaIntel.WebApi | v1",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5105/"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "WaIntel.WebApi"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quality/health": {
+      "get": {
+        "tags": [
+          "Quality"
+        ],
+        "operationId": "Quality_GetHealth",
+        "parameters": [
+          {
+            "name": "phoneNumberId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/quality/tier-advisor/{phoneNumberId}": {
+      "get": {
+        "tags": [
+          "Quality"
+        ],
+        "operationId": "Quality_GetTierAdvisor",
+        "parameters": [
+          {
+            "name": "phoneNumberId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/quality/simulate": {
+      "post": {
+        "tags": [
+          "Quality"
+        ],
+        "operationId": "Quality_Simulate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulateQualityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/windows/{waId}": {
+      "get": {
+        "tags": [
+          "Windows"
+        ],
+        "operationId": "Windows_GetWindow",
+        "parameters": [
+          {
+            "name": "waId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "phoneNumberId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/windows/simulate": {
+      "post": {
+        "tags": [
+          "Windows"
+        ],
+        "operationId": "Windows_Simulate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulateWindowRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "422": {
+            "description": "Validation failed"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SimulateQualityRequest": {
+        "required": [
+          "phoneNumberId",
+          "rating",
+          "tier"
+        ],
+        "type": "object",
+        "properties": {
+          "phoneNumberId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rating": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tier": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SimulateWindowRequest": {
+        "required": [
+          "phoneNumberId",
+          "waId",
+          "origin",
+          "csExpiresAt",
+          "ctwaExpiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "phoneNumberId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "waId": {
+            "type": "string"
+          },
+          "origin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "csExpiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "ctwaExpiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Json Web Token"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "WaIntel.WebApi"
+    },
+    {
+      "name": "Quality"
+    },
+    {
+      "name": "Windows"
+    }
+  ]
+}
