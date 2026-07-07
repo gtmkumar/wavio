@@ -1,5 +1,7 @@
 using System.Reflection;
 using FluentValidation;
+using Wavio.Utilities.CQRS.Abstractions;
+using Wavio.Utilities.CQRS.Behaviors;
 using Wavio.Utilities.CQRS.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,6 +19,12 @@ public static class DependencyInjection
 
         services.AddCustomCQRS(assembly);
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
+
+        // The only pipeline behavior activated so far: commands marked IUnitOfWorkCommand
+        // (e.g. InviteUser = create user + grant membership) run in one transaction; everything
+        // else passes through untouched. Requires the base DbContext alias registered in
+        // core.Infrastructure. Other behaviors (logging, caching, ...) stay opt-in.
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
 
         return services;
     }

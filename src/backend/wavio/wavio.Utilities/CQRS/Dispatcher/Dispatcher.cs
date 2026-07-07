@@ -1,46 +1,31 @@
 using Wavio.Utilities.CQRS.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Wavio.Utilities.CQRS.Dispatcher;
 
+/// <summary>
+/// The registered <see cref="IDispatcher"/> — delegates to <see cref="CommandDispatcher"/> /
+/// <see cref="QueryDispatcher"/> so every dispatch runs through the registered
+/// <see cref="IPipelineBehavior{TRequest,TResult}"/> chain. Services that register no behaviors
+/// get a plain handler call, unchanged.
+/// </summary>
 public sealed class Dispatcher : IDispatcher
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly CommandDispatcher _commands;
+    private readonly QueryDispatcher _queries;
 
     public Dispatcher(IServiceProvider serviceProvider)
     {
-        _serviceProvider = serviceProvider;
+        _commands = new CommandDispatcher(serviceProvider);
+        _queries = new QueryDispatcher(serviceProvider);
     }
 
-    public async Task<TResult> SendAsync<TResult>(
+    public Task<TResult> SendAsync<TResult>(
         ICommand<TResult> command,
-        CancellationToken cancellationToken = default)
-    {
-        var handlerType =
-            typeof(ICommandHandler<,>)
-                .MakeGenericType(command.GetType(), typeof(TResult));
+        CancellationToken cancellationToken = default) =>
+        _commands.SendAsync(command, cancellationToken);
 
-        dynamic handler =
-            _serviceProvider.GetRequiredService(handlerType);
-
-        return await handler.HandleAsync(
-            (dynamic)command,
-            cancellationToken);
-    }
-
-    public async Task<TResult> QueryAsync<TResult>(
+    public Task<TResult> QueryAsync<TResult>(
         IQuery<TResult> query,
-        CancellationToken cancellationToken = default)
-    {
-        var handlerType =
-            typeof(IQueryHandler<,>)
-                .MakeGenericType(query.GetType(), typeof(TResult));
-
-        dynamic handler =
-            _serviceProvider.GetRequiredService(handlerType);
-
-        return await handler.HandleAsync(
-            (dynamic)query,
-            cancellationToken);
-    }
+        CancellationToken cancellationToken = default) =>
+        _queries.QueryAsync(query, cancellationToken);
 }

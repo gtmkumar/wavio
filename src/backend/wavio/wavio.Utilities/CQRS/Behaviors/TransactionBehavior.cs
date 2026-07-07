@@ -46,26 +46,41 @@ public sealed class TransactionBehavior<TRequest, TResult>
             return await next();
         }
 
-        await using var transaction =
-            await dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-        try
+        if (dbContext.Database.CurrentTransaction is not null)
         {
-            var result = await next();
-
-            await dbContext.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-
-            return result;
+            // Nested unit-of-work command (dispatched from inside another one): join the
+            // outer transaction instead of opening a second one, which Npgsql rejects.
+            return await next();
         }
-        catch
+
+        // EnableRetryOnFailure is on (wavio.SharedDataModel DI): user-initiated transactions
+        // must run inside the execution strategy or BeginTransactionAsync throws. On a transient
+        // retry the whole handler re-executes, so unit-of-work handlers must confine their side
+        // effects to this DbContext.
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            _logger.LogWarning(
-                "Rolling back transaction for {Request}",
-                typeof(TRequest).Name);
+            await using var transaction =
+                await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-            await transaction.RollbackAsync(cancellationToken);
-            throw;
-        }
+            try
+            {
+                var result = await next();
+
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                return result;
+            }
+            catch
+            {
+                _logger.LogWarning(
+                    "Rolling back transaction for {Request}",
+                    typeof(TRequest).Name);
+
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+        });
     }
 }

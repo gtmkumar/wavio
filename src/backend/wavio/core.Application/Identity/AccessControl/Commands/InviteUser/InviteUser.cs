@@ -10,7 +10,9 @@ using Microsoft.Extensions.Logging;
 namespace core.Application.Identity.AccessControl.Commands.InviteUser;
 
 // ── Invite user (create + grant primary membership) ─────────────────────────
-public sealed record InviteUserCommand(InviteUserRequest Request) : ICommand<UserDto>;
+// IUnitOfWorkCommand: create + grant commit or roll back together — a failed grant must not
+// leave an orphan "No role" user behind (TransactionBehavior owns the transaction).
+public sealed record InviteUserCommand(InviteUserRequest Request) : ICommand<UserDto>, IUnitOfWorkCommand;
 
 public class InviteUserCommandHandler : ICommandHandler<InviteUserCommand, UserDto>
 {

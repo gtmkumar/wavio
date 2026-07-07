@@ -17,6 +17,13 @@ public static class DependencyInjection
     {
         services.AddScoped<ICoreDbContext, CoreDbContext>();
 
+        // TransactionBehavior (unit-of-work commands, see core.Application DI) resolves the
+        // ambient context as the base DbContext type — alias it to the same scoped
+        // WavioDbContext instance CoreDbContext wraps, so the transaction and the handlers'
+        // SaveChanges share one connection.
+        services.AddScoped<Microsoft.EntityFrameworkCore.DbContext>(
+            sp => sp.GetRequiredService<wavio.SharedDataModel.Persistence.WavioDbContext>());
+
         // ICurrentTenant (RLS) is now a cross-cutting registration via AddCurrentTenant() in the
         // host (wavio.Utilities.Services.HttpContextCurrentTenant) — shared with Operations.
 
