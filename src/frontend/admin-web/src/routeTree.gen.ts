@@ -12,15 +12,20 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
+import { Route as AppRolesRouteImport } from './routes/_app/roles'
 import { Route as AppRateCardsRouteImport } from './routes/_app/rate-cards'
 import { Route as AppQualityRouteImport } from './routes/_app/quality'
 import { Route as AppMessagesRouteImport } from './routes/_app/messages'
 import { Route as AppConsentRouteImport } from './routes/_app/consent'
 import { Route as AppCampaignsRouteImport } from './routes/_app/campaigns'
 import { Route as AppBillingRouteImport } from './routes/_app/billing'
+import { Route as AppUsersIndexRouteImport } from './routes/_app/users.index'
 import { Route as AppTemplatesIndexRouteImport } from './routes/_app/templates.index'
 import { Route as AppCampaignsIndexRouteImport } from './routes/_app/campaigns.index'
+import { Route as AppUsersInviteRouteImport } from './routes/_app/users.invite'
+import { Route as AppUsersUserIdRouteImport } from './routes/_app/users.$userId'
 import { Route as AppTemplatesNewRouteImport } from './routes/_app/templates.new'
 import { Route as AppTemplatesTemplateIdRouteImport } from './routes/_app/templates.$templateId'
 import { Route as AppCampaignsNewRouteImport } from './routes/_app/campaigns.new'
@@ -40,9 +45,19 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppUsersRoute = AppUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTemplatesRoute = AppTemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRolesRoute = AppRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRateCardsRoute = AppRateCardsRouteImport.update({
@@ -75,6 +90,11 @@ const AppBillingRoute = AppBillingRouteImport.update({
   path: '/billing',
   getParentRoute: () => AppRoute,
 } as any)
+const AppUsersIndexRoute = AppUsersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppUsersRoute,
+} as any)
 const AppTemplatesIndexRoute = AppTemplatesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -84,6 +104,16 @@ const AppCampaignsIndexRoute = AppCampaignsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppCampaignsRoute,
+} as any)
+const AppUsersInviteRoute = AppUsersInviteRouteImport.update({
+  id: '/invite',
+  path: '/invite',
+  getParentRoute: () => AppUsersRoute,
+} as any)
+const AppUsersUserIdRoute = AppUsersUserIdRouteImport.update({
+  id: '/$userId',
+  path: '/$userId',
+  getParentRoute: () => AppUsersRoute,
 } as any)
 const AppTemplatesNewRoute = AppTemplatesNewRouteImport.update({
   id: '/new',
@@ -115,13 +145,18 @@ export interface FileRoutesByFullPath {
   '/messages': typeof AppMessagesRoute
   '/quality': typeof AppQualityRoute
   '/rate-cards': typeof AppRateCardsRoute
+  '/roles': typeof AppRolesRoute
   '/templates': typeof AppTemplatesRouteWithChildren
+  '/users': typeof AppUsersRouteWithChildren
   '/campaigns/$campaignId': typeof AppCampaignsCampaignIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
   '/templates/$templateId': typeof AppTemplatesTemplateIdRoute
   '/templates/new': typeof AppTemplatesNewRoute
+  '/users/$userId': typeof AppUsersUserIdRoute
+  '/users/invite': typeof AppUsersInviteRoute
   '/campaigns/': typeof AppCampaignsIndexRoute
   '/templates/': typeof AppTemplatesIndexRoute
+  '/users/': typeof AppUsersIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -130,13 +165,17 @@ export interface FileRoutesByTo {
   '/messages': typeof AppMessagesRoute
   '/quality': typeof AppQualityRoute
   '/rate-cards': typeof AppRateCardsRoute
+  '/roles': typeof AppRolesRoute
   '/': typeof AppIndexRoute
   '/campaigns/$campaignId': typeof AppCampaignsCampaignIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
   '/templates/$templateId': typeof AppTemplatesTemplateIdRoute
   '/templates/new': typeof AppTemplatesNewRoute
+  '/users/$userId': typeof AppUsersUserIdRoute
+  '/users/invite': typeof AppUsersInviteRoute
   '/campaigns': typeof AppCampaignsIndexRoute
   '/templates': typeof AppTemplatesIndexRoute
+  '/users': typeof AppUsersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -148,14 +187,19 @@ export interface FileRoutesById {
   '/_app/messages': typeof AppMessagesRoute
   '/_app/quality': typeof AppQualityRoute
   '/_app/rate-cards': typeof AppRateCardsRoute
+  '/_app/roles': typeof AppRolesRoute
   '/_app/templates': typeof AppTemplatesRouteWithChildren
+  '/_app/users': typeof AppUsersRouteWithChildren
   '/_app/': typeof AppIndexRoute
   '/_app/campaigns/$campaignId': typeof AppCampaignsCampaignIdRoute
   '/_app/campaigns/new': typeof AppCampaignsNewRoute
   '/_app/templates/$templateId': typeof AppTemplatesTemplateIdRoute
   '/_app/templates/new': typeof AppTemplatesNewRoute
+  '/_app/users/$userId': typeof AppUsersUserIdRoute
+  '/_app/users/invite': typeof AppUsersInviteRoute
   '/_app/campaigns/': typeof AppCampaignsIndexRoute
   '/_app/templates/': typeof AppTemplatesIndexRoute
+  '/_app/users/': typeof AppUsersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -168,13 +212,18 @@ export interface FileRouteTypes {
     | '/messages'
     | '/quality'
     | '/rate-cards'
+    | '/roles'
     | '/templates'
+    | '/users'
     | '/campaigns/$campaignId'
     | '/campaigns/new'
     | '/templates/$templateId'
     | '/templates/new'
+    | '/users/$userId'
+    | '/users/invite'
     | '/campaigns/'
     | '/templates/'
+    | '/users/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -183,13 +232,17 @@ export interface FileRouteTypes {
     | '/messages'
     | '/quality'
     | '/rate-cards'
+    | '/roles'
     | '/'
     | '/campaigns/$campaignId'
     | '/campaigns/new'
     | '/templates/$templateId'
     | '/templates/new'
+    | '/users/$userId'
+    | '/users/invite'
     | '/campaigns'
     | '/templates'
+    | '/users'
   id:
     | '__root__'
     | '/_app'
@@ -200,14 +253,19 @@ export interface FileRouteTypes {
     | '/_app/messages'
     | '/_app/quality'
     | '/_app/rate-cards'
+    | '/_app/roles'
     | '/_app/templates'
+    | '/_app/users'
     | '/_app/'
     | '/_app/campaigns/$campaignId'
     | '/_app/campaigns/new'
     | '/_app/templates/$templateId'
     | '/_app/templates/new'
+    | '/_app/users/$userId'
+    | '/_app/users/invite'
     | '/_app/campaigns/'
     | '/_app/templates/'
+    | '/_app/users/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -238,11 +296,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/users': {
+      id: '/_app/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/templates': {
       id: '/_app/templates'
       path: '/templates'
       fullPath: '/templates'
       preLoaderRoute: typeof AppTemplatesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/roles': {
+      id: '/_app/roles'
+      path: '/roles'
+      fullPath: '/roles'
+      preLoaderRoute: typeof AppRolesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/rate-cards': {
@@ -287,6 +359,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBillingRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/users/': {
+      id: '/_app/users/'
+      path: '/'
+      fullPath: '/users/'
+      preLoaderRoute: typeof AppUsersIndexRouteImport
+      parentRoute: typeof AppUsersRoute
+    }
     '/_app/templates/': {
       id: '/_app/templates/'
       path: '/'
@@ -300,6 +379,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/campaigns/'
       preLoaderRoute: typeof AppCampaignsIndexRouteImport
       parentRoute: typeof AppCampaignsRoute
+    }
+    '/_app/users/invite': {
+      id: '/_app/users/invite'
+      path: '/invite'
+      fullPath: '/users/invite'
+      preLoaderRoute: typeof AppUsersInviteRouteImport
+      parentRoute: typeof AppUsersRoute
+    }
+    '/_app/users/$userId': {
+      id: '/_app/users/$userId'
+      path: '/$userId'
+      fullPath: '/users/$userId'
+      preLoaderRoute: typeof AppUsersUserIdRouteImport
+      parentRoute: typeof AppUsersRoute
     }
     '/_app/templates/new': {
       id: '/_app/templates/new'
@@ -364,6 +457,22 @@ const AppTemplatesRouteWithChildren = AppTemplatesRoute._addFileChildren(
   AppTemplatesRouteChildren,
 )
 
+interface AppUsersRouteChildren {
+  AppUsersUserIdRoute: typeof AppUsersUserIdRoute
+  AppUsersInviteRoute: typeof AppUsersInviteRoute
+  AppUsersIndexRoute: typeof AppUsersIndexRoute
+}
+
+const AppUsersRouteChildren: AppUsersRouteChildren = {
+  AppUsersUserIdRoute: AppUsersUserIdRoute,
+  AppUsersInviteRoute: AppUsersInviteRoute,
+  AppUsersIndexRoute: AppUsersIndexRoute,
+}
+
+const AppUsersRouteWithChildren = AppUsersRoute._addFileChildren(
+  AppUsersRouteChildren,
+)
+
 interface AppRouteChildren {
   AppBillingRoute: typeof AppBillingRoute
   AppCampaignsRoute: typeof AppCampaignsRouteWithChildren
@@ -371,7 +480,9 @@ interface AppRouteChildren {
   AppMessagesRoute: typeof AppMessagesRoute
   AppQualityRoute: typeof AppQualityRoute
   AppRateCardsRoute: typeof AppRateCardsRoute
+  AppRolesRoute: typeof AppRolesRoute
   AppTemplatesRoute: typeof AppTemplatesRouteWithChildren
+  AppUsersRoute: typeof AppUsersRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -382,7 +493,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppMessagesRoute: AppMessagesRoute,
   AppQualityRoute: AppQualityRoute,
   AppRateCardsRoute: AppRateCardsRoute,
+  AppRolesRoute: AppRolesRoute,
   AppTemplatesRoute: AppTemplatesRouteWithChildren,
+  AppUsersRoute: AppUsersRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
 }
 

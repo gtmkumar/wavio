@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import {
   Activity,
   Building2,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -12,6 +13,7 @@ import {
   Send,
   ShieldCheck,
   Sun,
+  UsersRound,
   Wallet,
 } from "lucide-react";
 import { useServicesHealth } from "@/api/queries/health";
@@ -31,6 +33,8 @@ const NAV_ITEMS = [
   { to: "/quality", label: "Quality", icon: Activity, permission: "quality.health.read" },
   { to: "/billing", label: "Billing", icon: Wallet, permission: "billing.quotas.read" },
   { to: "/consent", label: "Consent", icon: ShieldCheck, permission: "consent.read" },
+  { to: "/users", label: "Users", icon: UsersRound, permission: "users.list" },
+  { to: "/roles", label: "Roles", icon: KeyRound, permission: "roles.list" },
   { to: "/messages", label: "Send Message", icon: Send, permission: "messages.send" },
 ] as const;
 

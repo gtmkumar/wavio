@@ -462,6 +462,172 @@ export interface UpsertRetentionPolicyRequest {
   enabled: boolean;
 }
 
+// ── Identity admin (core.Application — envelope-wrapped) ─────────────────────
+
+// wavio.SharedDataModel/Enums/UserType.cs / UserStatus.cs
+export const USER_TYPES = ["platform_admin", "tenant_admin", "staff", "auditor", "support"] as const;
+export const USER_STATUSES = ["active", "invited", "locked", "suspended"] as const;
+
+// core.Application/Identity/Users/Dtos/UserDtos.cs (UserDto — list projection
+// fills only through displayName; the detail endpoint fills the profile too)
+export interface UserDetail {
+  id: string;
+  email: string | null;
+  phoneE164: string | null;
+  userType: string;
+  status: string;
+  mfaEnabled: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string | null;
+  designation: string | null;
+  employmentType: string | null;
+  kycStatus: string | null;
+}
+
+// UserDtos.cs UpdateUserRequest — null leaves a field unchanged, "" clears it.
+export interface UpdateUserRequest {
+  email?: string | null;
+  phone?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  designation?: string | null;
+}
+
+// UserDtos.cs RoleDto / PermissionDto / ChangeRoleRequest
+export interface Role {
+  id: string;
+  code: string;
+  name: string;
+  scopeType: string;
+  isSystem: boolean;
+  status: string;
+}
+
+export interface Permission {
+  id: string;
+  code: string;
+  module: string;
+  action: string;
+  name: string;
+  riskLevel: string;
+}
+
+export interface ChangeRoleRequest {
+  roleId: string;
+  scopeType: string;
+  /** null lets the backend fall back to the actor's tenant for tenant-scoped roles. */
+  scopeId: string | null;
+}
+
+// core.Application/Identity/AccessControl/Dtos/AccessControlDtos.cs
+export interface Person {
+  id: string;
+  name: string;
+  email: string;
+  initials: string;
+  roleCode: string;
+  roleName: string;
+  scopeLabel: string;
+  tier: string;
+  status: string;
+  userType: string;
+  lastActiveAt: string | null;
+}
+
+export interface PeopleCounts {
+  all: number;
+  platformStaff: number;
+  tenantStaff: number;
+}
+
+export interface AccessPeoplePage {
+  counts: PeopleCounts;
+  people: PaginatedList<Person>;
+}
+
+export interface InviteUserRequest {
+  email: string;
+  phone: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  userType: string;
+  roleId: string;
+  scopeType: string;
+  scopeId: string | null;
+  /** When set the account is created active immediately; otherwise an invite email is sent. */
+  password: string | null;
+}
+
+export interface SetPersonStatusRequest {
+  action: "activate" | "suspend" | "reactivate";
+  /** activate requires a temporary password (≥8 chars); the user must change it on first login. */
+  password: string | null;
+}
+
+export interface SetPersonStatusResult {
+  status: string;
+  mustChangePassword: boolean;
+}
+
+// AccessControlDtos.cs — roles/permissions matrix for the console
+export interface MatrixModule {
+  key: string;
+  label: string;
+}
+
+export interface RoleSummary {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  scopeType: string;
+  isSystem: boolean;
+  memberCount: number;
+  /** "module:action" cell keys currently granted to this role. */
+  onCells: string[];
+}
+
+export interface RoleGroup {
+  tier: string;
+  tierLabel: string;
+  roles: RoleSummary[];
+}
+
+export interface AccessRoles {
+  modules: MatrixModule[];
+  actions: string[];
+  groups: RoleGroup[];
+  /** cellKey ("module:action") → permission codes that checkbox grants. */
+  cells: Record<string, string[]>;
+}
+
+export interface RoleCellChange {
+  cellKey: string;
+  enabled: boolean;
+}
+
+// core.Application/Identity/AccessControl/Commands/ManageRoles/ManageRoles.cs
+export interface CreateRoleRequest {
+  code: string;
+  name: string;
+  description: string | null;
+  scopeType: string;
+}
+
+export interface UpdateRoleRequest {
+  name: string;
+  description: string | null;
+}
+
+export interface CloneRoleRequest {
+  code: string;
+  name: string;
+  description: string | null;
+}
+
 // ── Gateway health aggregation (wavio.Gateway /health/services) ──────────────
 // 200 when all healthy, 207 Multi-Status when any service is degraded.
 

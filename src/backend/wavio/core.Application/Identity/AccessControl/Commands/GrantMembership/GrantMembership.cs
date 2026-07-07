@@ -45,7 +45,9 @@ public class GrantMembershipCommandHandler : ICommandHandler<GrantMembershipComm
         var effectiveScopeId = cmd.Request.ScopeId;
         if (cmd.Request.ScopeType == ScopeType.Tenant && effectiveScopeId is null)
         {
-            effectiveScopeId = actor.TenantId
+            // TryGetTenantId, not the raw claim: platform admins have no tenant_id
+            // claim — their acting tenant arrives via the X-Tenant-Id override.
+            effectiveScopeId = actor.TryGetTenantId()
                 ?? throw new ValidationException(
                     new Dictionary<string, string[]> { ["scopeId"] = ["Tenant-scoped roles require a tenant id."] });
         }
