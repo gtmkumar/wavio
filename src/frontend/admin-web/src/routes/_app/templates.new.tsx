@@ -35,6 +35,15 @@ const CATEGORY_HELP: Record<string, string> = {
   AUTHENTICATION: "One-time passcodes only",
 };
 
+// Mirrors the backend rules lint (RulesTemplateLintService.OptOutPhrases): a marketing template
+// without one of these anywhere in its text is blocked at submit-to-Meta with
+// MARKETING_MISSING_OPT_OUT and quietly stays a draft — warn here instead.
+const OPT_OUT_PHRASES = [
+  "reply stop", "text stop", 'reply "stop"', "opt out", "opt-out", "unsubscribe",
+  "stop promotions", "stop promotion",
+];
+const OPT_OUT_FOOTER = "Reply STOP to opt out";
+
 /** Common Meta language codes — free-text stays possible via the datalist input. */
 const LANGUAGES = [
   "en", "en_US", "en_GB", "hi", "bn", "mr", "ta", "te", "gu", "kn", "ml", "pa", "ur",
@@ -98,6 +107,14 @@ function NewTemplatePage() {
   }, [phoneNumbers.data]);
 
   const variables = useMemo(() => extractVariables(bodyText), [bodyText]);
+
+  const needsOptOut = useMemo(() => {
+    if (TEMPLATE_CATEGORIES[category] !== "MARKETING") return false;
+    const allText = [headerText, bodyText, footerText, ...buttons.map((b) => b.text)]
+      .join(" ")
+      .toLowerCase();
+    return !OPT_OUT_PHRASES.some((p) => allText.includes(p));
+  }, [category, headerText, bodyText, footerText, buttons]);
 
   function insertVariable() {
     const next = variables.length === 0 ? 1 : Math.max(...variables.map(Number)) + 1;
@@ -308,6 +325,25 @@ function NewTemplatePage() {
               maxLength={60}
               placeholder="Reply STOP to opt out"
             />
+            {needsOptOut ? (
+              <div className="flex items-center justify-between gap-3 rounded-md bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-400">
+                <p>
+                  Marketing templates need an opt-out instruction (like "{OPT_OUT_FOOTER}") —
+                  without one, Meta submission is blocked and the template stays a draft.
+                </p>
+                {!footerText.trim() ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setFooterText(OPT_OUT_FOOTER)}
+                  >
+                    Add footer
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
