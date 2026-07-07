@@ -27,6 +27,9 @@ public sealed class WaAdminDbContext : IWaAdminDbContext
     public DbSet<TemplateLintResult> TemplateLintResults => _db.TemplateLintResults;
 
     public DbSet<WabaPhoneNumber> WabaPhoneNumbers => _db.WabaPhoneNumbers;
+    public DbSet<WabaBusinessAccount> WabaBusinessAccounts => _db.WabaBusinessAccounts;
+    public DbSet<WabaBusinessProfile> WabaBusinessProfiles => _db.WabaBusinessProfiles;
+    public DbSet<WabaPhoneNumberEvent> WabaPhoneNumberEvents => _db.WabaPhoneNumberEvents;
 
     public DbSet<OptInEvent> OptInEvents => _db.OptInEvents;
     public DbSet<OptOutEvent> OptOutEvents => _db.OptOutEvents;
@@ -34,14 +37,14 @@ public sealed class WaAdminDbContext : IWaAdminDbContext
     public DbSet<RetentionPolicy> RetentionPolicies => _db.RetentionPolicies;
     public DbSet<SuppressionListEntry> SuppressionListEntries => _db.SuppressionListEntries;
 
-    public async Task<string?> GetBusinessAccountMetaWabaIdAsync(Guid businessAccountId, CancellationToken cancellationToken)
-    {
-        var rows = await _db.Database
-            .SqlQuery<string?>(
-                $"SELECT meta_waba_id FROM waba.business_accounts WHERE id = {businessAccountId}")
-            .ToListAsync(cancellationToken);
-        return rows.Count > 0 ? rows[0] : null;
-    }
+    public Task<string?> GetBusinessAccountMetaWabaIdAsync(Guid businessAccountId, CancellationToken cancellationToken) =>
+        // Was a raw scalar SQL query while no waba.business_accounts entity existed; the
+        // onboarding wizard added WabaBusinessAccount, so this now goes through EF like
+        // everything else.
+        _db.WabaBusinessAccounts.AsNoTracking()
+            .Where(b => b.Id == businessAccountId)
+            .Select(b => (string?)b.MetaWabaId)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken) =>
         _db.SaveChangesAsync(cancellationToken);

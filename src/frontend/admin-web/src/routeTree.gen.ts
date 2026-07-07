@@ -17,6 +17,7 @@ import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
 import { Route as AppRolesRouteImport } from './routes/_app/roles'
 import { Route as AppRateCardsRouteImport } from './routes/_app/rate-cards'
 import { Route as AppQualityRouteImport } from './routes/_app/quality'
+import { Route as AppOnboardingRouteImport } from './routes/_app/onboarding'
 import { Route as AppMessagesRouteImport } from './routes/_app/messages'
 import { Route as AppConsentRouteImport } from './routes/_app/consent'
 import { Route as AppCampaignsRouteImport } from './routes/_app/campaigns'
@@ -68,6 +69,11 @@ const AppRateCardsRoute = AppRateCardsRouteImport.update({
 const AppQualityRoute = AppQualityRouteImport.update({
   id: '/quality',
   path: '/quality',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOnboardingRoute = AppOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMessagesRoute = AppMessagesRouteImport.update({
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/campaigns': typeof AppCampaignsRouteWithChildren
   '/consent': typeof AppConsentRoute
   '/messages': typeof AppMessagesRoute
+  '/onboarding': typeof AppOnboardingRoute
   '/quality': typeof AppQualityRoute
   '/rate-cards': typeof AppRateCardsRoute
   '/roles': typeof AppRolesRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/billing': typeof AppBillingRoute
   '/consent': typeof AppConsentRoute
   '/messages': typeof AppMessagesRoute
+  '/onboarding': typeof AppOnboardingRoute
   '/quality': typeof AppQualityRoute
   '/rate-cards': typeof AppRateCardsRoute
   '/roles': typeof AppRolesRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/_app/campaigns': typeof AppCampaignsRouteWithChildren
   '/_app/consent': typeof AppConsentRoute
   '/_app/messages': typeof AppMessagesRoute
+  '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/quality': typeof AppQualityRoute
   '/_app/rate-cards': typeof AppRateCardsRoute
   '/_app/roles': typeof AppRolesRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/campaigns'
     | '/consent'
     | '/messages'
+    | '/onboarding'
     | '/quality'
     | '/rate-cards'
     | '/roles'
@@ -230,6 +240,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/consent'
     | '/messages'
+    | '/onboarding'
     | '/quality'
     | '/rate-cards'
     | '/roles'
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/_app/campaigns'
     | '/_app/consent'
     | '/_app/messages'
+    | '/_app/onboarding'
     | '/_app/quality'
     | '/_app/rate-cards'
     | '/_app/roles'
@@ -329,6 +341,13 @@ declare module '@tanstack/react-router' {
       path: '/quality'
       fullPath: '/quality'
       preLoaderRoute: typeof AppQualityRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/onboarding': {
+      id: '/_app/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/messages': {
@@ -478,6 +497,7 @@ interface AppRouteChildren {
   AppCampaignsRoute: typeof AppCampaignsRouteWithChildren
   AppConsentRoute: typeof AppConsentRoute
   AppMessagesRoute: typeof AppMessagesRoute
+  AppOnboardingRoute: typeof AppOnboardingRoute
   AppQualityRoute: typeof AppQualityRoute
   AppRateCardsRoute: typeof AppRateCardsRoute
   AppRolesRoute: typeof AppRolesRoute
@@ -491,6 +511,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCampaignsRoute: AppCampaignsRouteWithChildren,
   AppConsentRoute: AppConsentRoute,
   AppMessagesRoute: AppMessagesRoute,
+  AppOnboardingRoute: AppOnboardingRoute,
   AppQualityRoute: AppQualityRoute,
   AppRateCardsRoute: AppRateCardsRoute,
   AppRolesRoute: AppRolesRoute,

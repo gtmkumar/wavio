@@ -81,6 +81,17 @@ public static class DependencyInjection
                 client.BaseAddress = new Uri(options.BaseUrl);
         });
 
+        // Onboarding wizard Graph client (docs/ONBOARDING_WIZARD_PLAN.md) — same lazy BaseAddress
+        // posture as the template client above. RemoveAllLoggers: debug_token's API shape forces
+        // the business token into the query string, and HttpClientFactory's default logging
+        // handlers record full request URIs at Information — which would log the token.
+        services.AddHttpClient<IWhatsAppOnboardingGraphClient, MetaGraphOnboardingClient>((sp, client) =>
+        {
+            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<MetaGraphOptions>>().Value;
+            if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+                client.BaseAddress = new Uri(options.BaseUrl);
+        }).RemoveAllLoggers();
+
         // RabbitMQ: one connection per host (Singleton manager, reconnects lazily on failure).
         services.AddSingleton<RabbitMqConnectionManager>();
 

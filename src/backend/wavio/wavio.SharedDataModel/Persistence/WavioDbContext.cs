@@ -73,8 +73,12 @@ public class WavioDbContext : DbContext
     public DbSet<OutboundMessage> OutboundMessages => Set<OutboundMessage>();
     public DbSet<OutboundOutboxEntry> OutboundOutboxEntries => Set<OutboundOutboxEntry>();
 
-    // waba (issue #14: dispatcher's internal-id -> Meta phone_number_id bridge)
+    // waba (issue #14: dispatcher's internal-id -> Meta phone_number_id bridge;
+    // business accounts/profiles/events added by the onboarding wizard — docs/ONBOARDING_WIZARD_PLAN.md)
     public DbSet<WabaPhoneNumber> WabaPhoneNumbers => Set<WabaPhoneNumber>();
+    public DbSet<WabaBusinessAccount> WabaBusinessAccounts => Set<WabaBusinessAccount>();
+    public DbSet<WabaBusinessProfile> WabaBusinessProfiles => Set<WabaBusinessProfile>();
+    public DbSet<WabaPhoneNumberEvent> WabaPhoneNumberEvents => Set<WabaPhoneNumberEvent>();
 
     // billing (issue #19: PMP cost ledger, rate cards, quotas/metering, invoice reconciliation)
     public DbSet<RateCard> RateCards => Set<RateCard>();

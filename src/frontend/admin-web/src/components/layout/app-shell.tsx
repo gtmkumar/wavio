@@ -10,6 +10,7 @@ import {
   Megaphone,
   MessageSquareText,
   Moon,
+  Rocket,
   Send,
   ShieldCheck,
   Sun,
@@ -28,6 +29,7 @@ import { applyTheme, getTheme, type Theme } from "./theme";
 
 const NAV_ITEMS = [
   { to: "/", label: "Overview", icon: LayoutDashboard, permission: null },
+  { to: "/onboarding", label: "Get started", icon: Rocket, permission: "waba.onboarding.read" },
   { to: "/campaigns", label: "Campaigns", icon: Megaphone, permission: "campaigns.list" },
   { to: "/templates", label: "Templates", icon: MessageSquareText, permission: "templates.list" },
   { to: "/quality", label: "Quality", icon: Activity, permission: "quality.health.read" },

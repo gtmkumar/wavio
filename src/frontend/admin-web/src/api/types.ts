@@ -640,3 +640,69 @@ export interface ServicesHealth {
   overall: string;
   services: ServiceHealthEntry[];
 }
+
+// ── Onboarding wizard (wa-admin-svc /v1/onboarding, docs/ONBOARDING_WIZARD_PLAN.md) ──
+
+export interface EmbeddedSignupRequest {
+  code: string;
+  wabaId: string | null;
+  phoneNumberId: string | null;
+}
+
+export interface OnboardingBusinessAccount {
+  id: string;
+  metaWabaId: string;
+  name: string;
+  currencyCode: string | null;
+  verificationStatus: string | null;
+  webhooksSubscribedAt: string | null;
+  hasToken: boolean;
+}
+
+export interface OnboardingPhone {
+  id: string;
+  metaPhoneNumberId: string;
+  displayPhoneNumber: string;
+  verifiedName: string | null;
+  status: string;
+  codeVerificationStatus: string | null;
+  nameStatus: string | null;
+  qualityRating: string | null;
+  messagingTier: string | null;
+  registeredAt: string | null;
+  profileSet: boolean;
+}
+
+/** state: done | waiting (Meta review — nothing to do) | todo | attention */
+export interface OnboardingCheck {
+  key: string;
+  state: string;
+  detail: string | null;
+}
+
+export interface OnboardingStatus {
+  connected: boolean;
+  businessAccount: OnboardingBusinessAccount | null;
+  phoneNumbers: OnboardingPhone[];
+  checks: OnboardingCheck[];
+}
+
+export interface BusinessProfile {
+  about: string | null;
+  address: string | null;
+  description: string | null;
+  email: string | null;
+  websites: string[];
+  vertical: string | null;
+  profilePictureUrl: string | null;
+}
+
+export interface UpdateBusinessProfileRequest {
+  about: string | null;
+  address: string | null;
+  description: string | null;
+  email: string | null;
+  websites: string[] | null;
+  vertical: string | null;
+  profilePictureUrl: string | null;
+}

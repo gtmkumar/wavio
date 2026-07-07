@@ -34,6 +34,20 @@ public class WabaPhoneNumber
     /// until now.</summary>
     public string? QualityRating { get; set; }
 
+    /// <summary>The WhatsApp display name shown to customers, as known to Meta.</summary>
+    public string? VerifiedName { get; set; }
+
+    /// <summary>Meta display-name review state (V014) — NONE/PENDING_REVIEW/APPROVED/DECLINED,
+    /// mirrored from Graph by the onboarding wizard. Meta owns the review.</summary>
+    public string? NameStatus { get; set; }
+
+    /// <summary>Meta OTP ownership-verification state (V014) — NOT_VERIFIED/VERIFIED.</summary>
+    public string? CodeVerificationStatus { get; set; }
+
+    /// <summary>When Cloud API registration (/register with the two-step pin) succeeded (V014).
+    /// Null = not registered yet.</summary>
+    public DateTimeOffset? RegisteredAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public int Version { get; set; }

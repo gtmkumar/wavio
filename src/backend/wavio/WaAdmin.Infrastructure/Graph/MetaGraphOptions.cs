@@ -18,4 +18,11 @@ public sealed class MetaGraphOptions
 
     /// <summary>System-user bearer token. Never logged.</summary>
     public string AccessToken { get; set; } = string.Empty;
+
+    /// <summary>Meta app id — used by the Embedded Signup code→token exchange (onboarding
+    /// wizard). Empty in stub mode; the stub ignores client credentials.</summary>
+    public string AppId { get; set; } = string.Empty;
+
+    /// <summary>Meta app secret for the code→token exchange. Never logged.</summary>
+    public string AppSecret { get; set; } = string.Empty;
 }

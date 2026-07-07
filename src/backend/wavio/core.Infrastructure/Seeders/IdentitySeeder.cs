@@ -133,6 +133,12 @@ public sealed class IdentitySeeder
         // wa-admin-svc read-only WABA lookups for the admin console (pickers: campaign
         // "send from" number, template business account).
         ("waba.phone_numbers.read", "waba", "read", "List the tenant's sender phone numbers", RiskLevel.Low),
+
+        // wa-admin-svc onboarding wizard (docs/ONBOARDING_WIZARD_PLAN.md, spec §4.1). manage is
+        // High risk — it stores the per-WABA business token and registers numbers — so the §8
+        // step-up OTP guard applies automatically via ScopeResolver.
+        ("waba.onboarding.read",   "waba", "read",   "View WhatsApp onboarding status",                 RiskLevel.Low),
+        ("waba.onboarding.manage", "waba", "manage", "Connect a WABA, register numbers, edit profile", RiskLevel.High),
     ];
 
     private async Task<Dictionary<string, Permission>> SeedPermissionsAsync(CancellationToken ct)
@@ -259,7 +265,10 @@ public sealed class IdentitySeeder
             "consent.write", "consent.read", "consent.requests.manage", "consent.requests.read",
             "consent.retention.read", "consent.retention.manage",
             "campaigns.list", "campaigns.read", "campaigns.create", "campaigns.launch", "campaigns.cancel",
-            "waba.phone_numbers.read");
+            "waba.phone_numbers.read",
+            // Onboarding is a tenant-admin journey (connecting the tenant's own WABA);
+            // staff intentionally get neither (not even read — the wizard is not their surface).
+            "waba.onboarding.read", "waba.onboarding.manage");
 
         // staff: read-only + the example feature + day-to-day messaging.
         Grant("staff", "users.list", "users.read", "roles.list", "permissions.list", "widgets.manage",

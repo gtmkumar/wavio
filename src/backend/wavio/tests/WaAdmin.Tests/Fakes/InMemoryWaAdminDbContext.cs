@@ -23,6 +23,9 @@ public sealed class InMemoryWaAdminDbContext : DbContext, IWaAdminDbContext
     public DbSet<TemplateLintResult> TemplateLintResults => Set<TemplateLintResult>();
 
     public DbSet<WabaPhoneNumber> WabaPhoneNumbers => Set<WabaPhoneNumber>();
+    public DbSet<WabaBusinessAccount> WabaBusinessAccounts => Set<WabaBusinessAccount>();
+    public DbSet<WabaBusinessProfile> WabaBusinessProfiles => Set<WabaBusinessProfile>();
+    public DbSet<WabaPhoneNumberEvent> WabaPhoneNumberEvents => Set<WabaPhoneNumberEvent>();
 
     public DbSet<OptInEvent> OptInEvents => Set<OptInEvent>();
     public DbSet<OptOutEvent> OptOutEvents => Set<OptOutEvent>();
@@ -50,6 +53,10 @@ public sealed class InMemoryWaAdminDbContext : DbContext, IWaAdminDbContext
         modelBuilder.Entity<ErasureRequest>().HasKey(e => e.Id);
         modelBuilder.Entity<RetentionPolicy>().HasKey(e => e.Id);
         modelBuilder.Entity<SuppressionListEntry>().HasKey(e => e.Id);
+        modelBuilder.Entity<WabaPhoneNumber>().HasKey(e => e.Id);
+        modelBuilder.Entity<WabaBusinessAccount>().HasKey(e => e.Id);
+        modelBuilder.Entity<WabaBusinessProfile>().HasKey(e => e.Id);
+        modelBuilder.Entity<WabaPhoneNumberEvent>().HasKey(e => e.Id);
     }
 
     public static InMemoryWaAdminDbContext Create(string databaseName) =>

@@ -24,8 +24,14 @@ public interface IWaAdminDbContext
     DbSet<TemplateLintResult> TemplateLintResults { get; }
 
     /// <summary>Read-only picker surface for the admin console (GET /v1/waba/phone-numbers);
-    /// the shared <c>WabaPhoneNumber</c> entity already existed for the outbox dispatcher.</summary>
+    /// the shared <c>WabaPhoneNumber</c> entity already existed for the outbox dispatcher.
+    /// The onboarding wizard (docs/ONBOARDING_WIZARD_PLAN.md) also writes it, alongside the
+    /// three sets below.</summary>
     DbSet<WabaPhoneNumber> WabaPhoneNumbers { get; }
+
+    DbSet<WabaBusinessAccount> WabaBusinessAccounts { get; }
+    DbSet<WabaBusinessProfile> WabaBusinessProfiles { get; }
+    DbSet<WabaPhoneNumberEvent> WabaPhoneNumberEvents { get; }
 
     DbSet<OptInEvent> OptInEvents { get; }
     DbSet<OptOutEvent> OptOutEvents { get; }
@@ -35,11 +41,9 @@ public interface IWaAdminDbContext
 
     /// <summary>
     /// Looks up the Meta-side WABA id (waba.business_accounts.meta_waba_id) for a platform
-    /// business-account row. Raw scalar read rather than a DbSet/navigation: wa-admin-svc's
-    /// templates schema has a DB foreign key to <c>waba.business_accounts</c> (V009), but no EF
-    /// entity for that schema exists yet (WABA onboarding is issue #6/#14) — this is the minimal
-    /// surface needed to address Meta's Graph API by the right id without pulling in the whole
-    /// waba bounded context. Returns null when the business account row does not exist.
+    /// business-account row. Kept as a scalar convenience for the template-submit path even
+    /// though <see cref="WabaBusinessAccounts"/> now exists (onboarding wizard).
+    /// Returns null when the business account row does not exist.
     /// </summary>
     Task<string?> GetBusinessAccountMetaWabaIdAsync(Guid businessAccountId, CancellationToken cancellationToken);
 
